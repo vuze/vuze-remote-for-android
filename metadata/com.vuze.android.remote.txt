@@ -32,7 +32,7 @@ Build:2.2.4,63
     commit=5e9486fb4a4cb0a90d6f0ee8fce5dad2ef242e04
     subdir=VuzeRemoteProject
     patch=f-droid.2.2.4.diff
-   rm=google-play-services_lib,VuzeRemoteProject/libs/libGoogleAnalyticsServices.jar,VuzeRemoteProject/src/com/vuze/android/remote/VuzeEasyTrackerNew.java,VuzeRemoteProject/src/com/vuze/android/remote/VuzeEasyTrackerOld.java,VuzeRemoteProject/src/com/vuze/android/remote/CampaignTrackingReceiver.java
+    rm=google-play-services_lib,VuzeRemoteProject/libs/libGoogleAnalyticsServices.jar,VuzeRemoteProject/src/com/vuze/android/remote/VuzeEasyTrackerNew.java,VuzeRemoteProject/src/com/vuze/android/remote/VuzeEasyTrackerOld.java,VuzeRemoteProject/src/com/vuze/android/remote/CampaignTrackingReceiver.java
 
 Auto Update Mode:None
 Update Check Mode:RepoManifest
