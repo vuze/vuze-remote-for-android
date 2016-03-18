@@ -19,6 +19,7 @@ package com.vuze.android.remote;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.util.Log;
 
 import com.vuze.android.remote.activity.IntentHandler;
 import com.vuze.android.remote.activity.TorrentViewActivity;

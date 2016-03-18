@@ -19,47 +19,48 @@ package com.vuze.android.remote.fragment;
 import java.util.List;
 import java.util.Map;
 
-import org.gudy.azureus2.core3.util.DisplayFormatters;
-
-import android.annotation.TargetApi;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewTreeObserver.OnGlobalLayoutListener;
-import android.widget.*;
-import android.widget.AbsListView.OnScrollListener;
-import android.widget.AdapterView.OnItemClickListener;
+import android.widget.TextView;
 
-import com.aelitis.azureus.util.MapUtils;
-import com.handmark.pulltorefresh.library.PullToRefreshBase.Mode;
-import com.handmark.pulltorefresh.library.PullToRefreshListView;
+import com.vuze.android.FlexibleRecyclerSelectionListener;
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.SessionInfo.RpcExecuter;
 import com.vuze.android.remote.activity.TorrentViewActivity;
+import com.vuze.android.remote.adapter.FilesAdapterDisplayFolder;
+import com.vuze.android.remote.adapter.FilesAdapterDisplayObject;
+import com.vuze.android.remote.adapter.FilesTreeAdapter;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
 import com.vuze.android.remote.rpc.TransmissionRPC;
+import com.vuze.android.widget.PreCachingLayoutManager;
+import com.vuze.util.DisplayFormatters;
 
+/**
+ * Files list for Open Options window.
+ *
+ * NOTE: There's duplicate code in FilesFragment.  Untill common code is merged,
+ * changes here should be done there.
+ */
 public class OpenOptionsFilesFragment
 	extends Fragment
 {
 
 	private static final String TAG = "FilesSelection";
 
-	private ListView listview;
-
-	private PullToRefreshListView pullListView;
+	private RecyclerView listview;
 
 	private FilesTreeAdapter adapter;
 
 	private SessionInfo sessionInfo;
 
 	private long torrentID;
-
-	private View topView;
 
 	private TextView tvScrollTitle;
 
@@ -114,109 +115,127 @@ public class OpenOptionsFilesFragment
 			return null;
 		}
 
-		topView = inflater.inflate(R.layout.frag_fileselection, container, false);
+		View topView = inflater.inflate(R.layout.frag_fileselection, container,
+				false);
 		tvScrollTitle = (TextView) topView.findViewById(R.id.files_scrolltitle);
 		tvSummary = (TextView) topView.findViewById(R.id.files_summary);
 
-		View oListView = topView.findViewById(R.id.files_list);
-		if (oListView instanceof ListView) {
-			listview = (ListView) oListView;
-		} else if (oListView instanceof PullToRefreshListView) {
-			pullListView = (PullToRefreshListView) oListView;
-			listview = pullListView.getRefreshableView();
-			pullListView.setMode(Mode.DISABLED);
-		}
+		listview = (RecyclerView) topView.findViewById(R.id.files_list);
+		listview.setLayoutManager(new PreCachingLayoutManager(getContext()));
+		listview.setAdapter(adapter);
 
-		listview.setItemsCanFocus(false);
-		listview.setClickable(true);
-		listview.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
-
-		listview.setOnItemClickListener(new OnItemClickListener() {
-			@SuppressWarnings("unchecked")
+		FlexibleRecyclerSelectionListener rs = new FlexibleRecyclerSelectionListener<FilesTreeAdapter, FilesAdapterDisplayObject>() {
 			@Override
-			public void onItemClick(AdapterView<?> parent, View view, int position,
-					long id) {
-				boolean isChecked = listview.isItemChecked(position);
-				// DON'T USE adapter.getItemId, it doesn't account for headers!
-				int selectedFileIndex = isChecked
-						? (int) parent.getItemIdAtPosition(position) : -1;
-				if (selectedFileIndex >= 0) {
-					@SuppressWarnings("rawtypes")
-					Map mapFile = getSelectedFile(selectedFileIndex);
-					final int fileIndex = MapUtils.getMapInt(mapFile, "index", -2);
-					final boolean wanted = MapUtils.getMapBoolean(mapFile, "wanted", true);
-
-					if (fileIndex < 0) {
+			public void onItemClick(FilesTreeAdapter adapter, int position) {
+				if (AndroidUtils.usesNavigationControl()) {
+					FilesAdapterDisplayObject oItem = adapter.getItem(position);
+					if (adapter.isInEditMode()) {
+						adapter.flipWant(oItem);
 						return;
 					}
-					if (mapFile != null) {
-						mapFile.put("wanted", !wanted);
-						adapter.refreshList();
+					if (oItem instanceof FilesAdapterDisplayFolder) {
+						FilesAdapterDisplayFolder oFolder = (FilesAdapterDisplayFolder) oItem;
+						oFolder.expand = !oFolder.expand;
+						adapter.getFilter().filter("");
+					}
+				}
+			}
+
+			@Override
+			public boolean onItemLongClick(FilesTreeAdapter adapter, int position) {
+				return false;
+			}
+
+			@Override
+			public void onItemSelected(FilesTreeAdapter adapter, int position,
+					boolean isChecked) {
+
+			}
+
+			@Override
+			public void onItemCheckedChanged(FilesTreeAdapter adapter,
+					FilesAdapterDisplayObject item, boolean isChecked) {
+			}
+		};
+
+		adapter = new FilesTreeAdapter(this.getActivity(), rs);
+		adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
+			@Override
+			public void onItemRangeChanged(int positionStart, int itemCount) {
+				if (tvSummary != null) {
+					tvSummary.setText(DisplayFormatters.formatByteCountToKiBEtc(
+							adapter.getTotalSizeWanted()));
+				}
+			}
+
+			@Override
+			public void onChanged() {
+				super.onChanged();
+				if (tvSummary != null) {
+					tvSummary.setText(DisplayFormatters.formatByteCountToKiBEtc(
+							adapter.getTotalSizeWanted()));
+				}
+			}
+		});
+		adapter.setInEditMode(true);
+		adapter.setSessionInfo(sessionInfo);
+		adapter.setCheckOnSelectedAfterMS(0);
+		listview.setAdapter(adapter);
+
+		listview.setOnKeyListener(new View.OnKeyListener() {
+			@Override
+			public boolean onKey(View v, int keyCode, KeyEvent event) {
+				{
+					if (event.getAction() != KeyEvent.ACTION_DOWN) {
+						return false;
+					}
+					switch (keyCode) {
+						case KeyEvent.KEYCODE_DPAD_RIGHT: {
+							// expand
+							int i = adapter.getSelectedPosition();
+							FilesAdapterDisplayObject item = adapter.getItem(i);
+							if (item instanceof FilesAdapterDisplayFolder) {
+								if (!((FilesAdapterDisplayFolder) item).expand) {
+									((FilesAdapterDisplayFolder) item).expand = true;
+									adapter.getFilter().filter("");
+									return true;
+								}
+							}
+							break;
+						}
+
+						case KeyEvent.KEYCODE_DPAD_LEFT: {
+							// collapse
+							int i = adapter.getSelectedPosition();
+							FilesAdapterDisplayObject item = adapter.getItem(i);
+							if (item instanceof FilesAdapterDisplayFolder) {
+								if (((FilesAdapterDisplayFolder) item).expand) {
+									((FilesAdapterDisplayFolder) item).expand = false;
+									adapter.getFilter().filter("");
+									return true;
+								}
+							}
+							break;
+						}
 					}
 
-					sessionInfo.executeRpc(new RpcExecuter() {
-						@Override
-						public void executeRpc(TransmissionRPC rpc) {
-							rpc.setWantState("btnWant", torrentID, new int[] {
-								fileIndex
-							}, !wanted, null);
-						}
-					});
-
+					return false;
 				}
-				
-				listview.setItemChecked(position, false);
 			}
 		});
 
-		if (Build.VERSION.SDK_INT >= 19) {
-			listview.getViewTreeObserver().addOnGlobalLayoutListener(
-					new OnGlobalLayoutListener() {
-						@SuppressWarnings("deprecation")
-						@TargetApi(Build.VERSION_CODES.JELLY_BEAN)
-						@Override
-						public void onGlobalLayout() {
-							listview.setFastScrollEnabled(true);
-							if (Build.VERSION.SDK_INT >= 16) {
-								listview.getViewTreeObserver().removeOnGlobalLayoutListener(
-										this);
-							} else {
-								listview.getViewTreeObserver().removeGlobalOnLayoutListener(
-										this);
-							}
-						}
-					});
-		} else {
-			listview.setFastScrollEnabled(true);
-		}
-
-		adapter = new FilesTreeAdapter(this.getActivity()) {
-			@Override
-			public void notifyDataSetChanged() {
-				super.notifyDataSetChanged();
-				if (tvSummary != null) {
-					tvSummary.setText(DisplayFormatters.formatByteCountToKiBEtc(adapter.getTotalSizeWanted()));
-				}
-			}
-		};
-		adapter.setInEditMode(true);
-		adapter.setSessionInfo(sessionInfo);
-		listview.setItemsCanFocus(true);
-		listview.setAdapter(adapter);
-
-		listview.setOnScrollListener(new OnScrollListener() {
+		listview.setOnScrollListener(new RecyclerView.OnScrollListener() {
 			int firstVisibleItem = 0;
 
 			@Override
-			public void onScrollStateChanged(AbsListView view, int scrollState) {
-			}
-
-			@Override
-			public void onScroll(AbsListView view, int firstVisibleItem,
-					int visibleItemCount, int totalItemCount) {
+			public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+				super.onScrolled(recyclerView, dx, dy);
+				LinearLayoutManager lm = (LinearLayoutManager) listview.getLayoutManager();
+				int firstVisibleItem = lm.findFirstCompletelyVisibleItemPosition();
 				if (firstVisibleItem != this.firstVisibleItem) {
 					this.firstVisibleItem = firstVisibleItem;
-					FilesAdapterDisplayObject itemAtPosition = (FilesAdapterDisplayObject) listview.getItemAtPosition(firstVisibleItem);
+					FilesAdapterDisplayObject itemAtPosition = adapter.getItem(
+							firstVisibleItem);
 
 					if (itemAtPosition == null) {
 						return;
@@ -243,18 +262,18 @@ public class OpenOptionsFilesFragment
 					rpc.getTorrentFileInfo(TAG, torrentID, null,
 							new TorrentListReceivedListener() {
 
+						@Override
+						public void rpcTorrentListReceived(String callID,
+								List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
+							AndroidUtils.runOnUIThread(OpenOptionsFilesFragment.this,
+									new Runnable() {
 								@Override
-								public void rpcTorrentListReceived(String callID,
-										List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
-									AndroidUtils.runOnUIThread(OpenOptionsFilesFragment.this,
-											new Runnable() {
-												@Override
-												public void run() {
-													adapter.setTorrentID(torrentID);
-												}
-											});
+								public void run() {
+									adapter.setTorrentID(torrentID);
 								}
 							});
+						}
+					});
 				}
 			});
 		}
@@ -266,23 +285,4 @@ public class OpenOptionsFilesFragment
 
 		return topView;
 	}
-
-	protected Map<?, ?> getSelectedFile(int selectedFileIndex) {
-		Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
-		if (torrent == null) {
-			return null;
-		}
-		List<?> listFiles = MapUtils.getMapList(torrent, "files", null);
-		if (listFiles == null || selectedFileIndex < 0
-				|| selectedFileIndex >= listFiles.size()) {
-			return null;
-		}
-		Object object = listFiles.get(selectedFileIndex);
-		if (object instanceof Map<?, ?>) {
-			Map<?, ?> map = (Map<?, ?>) object;
-			return map;
-		}
-		return null;
-	}
-
 }

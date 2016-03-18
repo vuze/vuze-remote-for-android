@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:app="http://schemas.android.com/apk/res/com.vuze.android.remote"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
 	android:layout_width="fill_parent"
 	android:layout_height="fill_parent" >
 
@@ -23,6 +23,7 @@
 				android:layout_height="wrap_content"
 				android:gravity="center_vertical"
 				android:text="@string/rp_download_speed"
+				android:focusableInTouchMode="true"
 				android:thumb="@drawable/switch_thumb_material"
 				app:switchMinWidth="50dp" >
 
@@ -212,6 +213,17 @@
 			android:text="@string/rp_small_lists"
 			android:thumb="@drawable/switch_thumb_material"
 			app:switchMinWidth="50dp" />
+
+
+		<android.support.v7.widget.SwitchCompat
+			android:id="@+id/rp_chkShowOpenOptionsDialog"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:gravity="center_vertical"
+			android:paddingTop="10dp"
+			android:text="@string/rp_show_open_options"
+			android:thumb="@drawable/switch_thumb_material"
+			app:switchMinWidth="50dp" />
 	</LinearLayout>
 
-</ScrollView>
+	</ScrollView>

@@ -16,11 +16,9 @@
 
 package com.vuze.android.remote.fragment;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import org.gudy.azureus2.core3.util.DisplayFormatters;
 
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
@@ -31,12 +29,13 @@ import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
-import android.view.*;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.widget.*;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 
-import com.aelitis.azureus.util.MapUtils;
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.SessionInfo.RpcExecuter;
 import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
@@ -44,6 +43,8 @@ import com.vuze.android.remote.dialog.DialogFragmentMoveData;
 import com.vuze.android.remote.rpc.ReplyMapReceivedListener;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
 import com.vuze.android.remote.rpc.TransmissionRPC;
+import com.vuze.util.DisplayFormatters;
+import com.vuze.util.MapUtils;
 
 public class OpenOptionsGeneralFragment
 	extends Fragment
@@ -60,10 +61,6 @@ public class OpenOptionsGeneralFragment
 	private TextView tvName;
 
 	private TextView tvSaveLocation;
-
-	private CompoundButton btnPositionLast;
-
-	private CompoundButton btnStateQueued;
 
 	private TorrentOpenOptionsActivity ourActivity;
 
@@ -82,12 +79,12 @@ public class OpenOptionsGeneralFragment
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
 			Bundle savedInstanceState) {
 
-		if (AndroidUtils.DEBUG) {
-			Log.d(TAG, "onCreateview " + this);
-		}
-
 		FragmentActivity activity = getActivity();
 		Intent intent = activity.getIntent();
+
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, activity + "] onCreateview " + this);
+		}
 
 		final Bundle extras = intent.getExtras();
 		if (extras == null) {
@@ -110,36 +107,43 @@ public class OpenOptionsGeneralFragment
 		topView = inflater.inflate(R.layout.frag_openoptions_general, container,
 				false);
 
-		ImageButton btnEditDir = (ImageButton) topView.findViewById(R.id.openoptions_btn_editdir);
-		ImageButton btnEditName = (ImageButton) topView.findViewById(R.id.openoptions_btn_editname);
+		ImageButton btnEditDir = (ImageButton) topView.findViewById(
+				R.id.openoptions_btn_editdir);
+		ImageButton btnEditName = (ImageButton) topView.findViewById(
+				R.id.openoptions_btn_editname);
 
 		tvName = (TextView) topView.findViewById(R.id.openoptions_name);
 		tvSaveLocation = (TextView) topView.findViewById(R.id.openoptions_saveloc);
 		tvFreeSpace = (TextView) topView.findViewById(R.id.openoptions_freespace);
 
-		btnPositionLast = (CompoundButton) topView.findViewById(R.id.openoptions_sw_position);
-		btnStateQueued = (CompoundButton) topView.findViewById(R.id.openoptions_sw_state);
+		CompoundButton btnPositionLast = (CompoundButton) topView.findViewById(
+				R.id.openoptions_sw_position);
+
+		CompoundButton btnStateQueued = (CompoundButton) topView.findViewById(
+				R.id.openoptions_sw_state);
 
 		if (ourActivity != null) {
 			if (btnPositionLast != null) {
 				btnPositionLast.setChecked(ourActivity.isPositionLast());
-				btnPositionLast.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-					@Override
-					public void onCheckedChanged(CompoundButton buttonView,
-							boolean isChecked) {
-						ourActivity.setPositionLast(isChecked);
-					}
-				});
+				btnPositionLast.setOnCheckedChangeListener(
+						new OnCheckedChangeListener() {
+							@Override
+							public void onCheckedChanged(CompoundButton buttonView,
+									boolean isChecked) {
+								ourActivity.setPositionLast(isChecked);
+							}
+						});
 			}
 			if (btnStateQueued != null) {
 				btnStateQueued.setChecked(ourActivity.isStateQueued());
-				btnStateQueued.setOnCheckedChangeListener(new OnCheckedChangeListener() {
-					@Override
-					public void onCheckedChanged(CompoundButton buttonView,
-							boolean isChecked) {
-						ourActivity.setStateQueued(isChecked);
-					}
-				});
+				btnStateQueued.setOnCheckedChangeListener(
+						new OnCheckedChangeListener() {
+							@Override
+							public void onCheckedChanged(CompoundButton buttonView,
+									boolean isChecked) {
+								ourActivity.setStateQueued(isChecked);
+							}
+						});
 			}
 		}
 
@@ -159,21 +163,22 @@ public class OpenOptionsGeneralFragment
 				@Override
 				public void executeRpc(TransmissionRPC rpc) {
 					rpc.getTorrent(TAG, torrentID,
-							Arrays.asList(TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR),
+							Collections.singletonList(
+									TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR),
 							new TorrentListReceivedListener() {
 
+						@Override
+						public void rpcTorrentListReceived(String callID,
+								List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
+							AndroidUtils.runOnUIThread(OpenOptionsGeneralFragment.this,
+									new Runnable() {
 								@Override
-								public void rpcTorrentListReceived(String callID,
-										List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
-									AndroidUtils.runOnUIThread(OpenOptionsGeneralFragment.this,
-											new Runnable() {
-												@Override
-												public void run() {
-													updateFields(torrent);
-												}
-											});
+								public void run() {
+									updateFields(torrent);
 								}
 							});
+						}
+					});
 				}
 			});
 		}
@@ -209,25 +214,25 @@ public class OpenOptionsGeneralFragment
 						builder.setPositiveButton(android.R.string.ok,
 								new DialogInterface.OnClickListener() {
 
-									@Override
-									public void onClick(DialogInterface dialog, int which) {
-										final String newName = textView.getText().toString();
-										tvName.setText(newName);
-										sessionInfo.executeRpc(new RpcExecuter() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								final String newName = textView.getText().toString();
+								tvName.setText(newName);
+								sessionInfo.executeRpc(new RpcExecuter() {
 
-											@Override
-											public void executeRpc(TransmissionRPC rpc) {
-												rpc.setDisplayName(TAG, torrentID, newName);
-											}
-										});
+									@Override
+									public void executeRpc(TransmissionRPC rpc) {
+										rpc.setDisplayName(TAG, torrentID, newName);
 									}
 								});
+							}
+						});
 						builder.setNegativeButton(android.R.string.cancel,
 								new DialogInterface.OnClickListener() {
-									@Override
-									public void onClick(DialogInterface dialog, int which) {
-									}
-								});
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+							}
+						});
 						builder.create().show();
 					}
 				});
@@ -239,11 +244,17 @@ public class OpenOptionsGeneralFragment
 		return topView;
 	}
 
+	@Override
+	public void onResume() {
+		super.onResume();
+	}
+
 	private void updateFields(Map<?, ?> torrent) {
 		if (tvName != null) {
 			tvName.setText(MapUtils.getMapString(torrent, "name", "dunno"));
 		}
-		final String saveLocation = TorrentUtils.getSaveLocation(torrent);
+		final String saveLocation = TorrentUtils.getSaveLocation(sessionInfo,
+				torrent);
 		if (tvSaveLocation != null) {
 			tvSaveLocation.setText(saveLocation);
 		}
@@ -263,14 +274,15 @@ public class OpenOptionsGeneralFragment
 							}
 							AndroidUtils.runOnUIThread(OpenOptionsGeneralFragment.this,
 									new Runnable() {
-										@Override
-										public void run() {
-											String freeSpaceString = DisplayFormatters.formatByteCountToKiBEtc(freeSpace);
-											String s = getResources().getString(
-													R.string.x_space_free, freeSpaceString);
-											tvFreeSpace.setText(s);
-										}
-									});
+								@Override
+								public void run() {
+									String freeSpaceString = DisplayFormatters.formatByteCountToKiBEtc(
+											freeSpace);
+									String s = getResources().getString(R.string.x_space_free,
+											freeSpaceString);
+									tvFreeSpace.setText(s);
+								}
+							});
 						}
 
 						@Override

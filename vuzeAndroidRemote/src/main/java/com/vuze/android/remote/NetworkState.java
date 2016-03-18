@@ -36,7 +36,7 @@ public class NetworkState
 
 	public interface NetworkStateListener
 	{
-		public void onlineStateChanged(boolean isOnline);
+		void onlineStateChanged(boolean isOnline);
 	}
 
 	private BroadcastReceiver mConnectivityReceiver;
@@ -47,7 +47,7 @@ public class NetworkState
 
 	private Context context;
 
-	private List<NetworkStateListener> listeners = new ArrayList<NetworkState.NetworkStateListener>();
+	private final List<NetworkStateListener> listeners = new ArrayList<>();
 
 	public NetworkState(Context context) {
 		this.context = context;
@@ -64,8 +64,8 @@ public class NetworkState
 				onlineStateReason = intent.getStringExtra(ConnectivityManager.EXTRA_REASON);
 				if (AndroidUtils.DEBUG) {
 					@SuppressWarnings("deprecation")
-					NetworkInfo networkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
-					NetworkInfo otherNetworkInfo = (NetworkInfo) intent.getParcelableExtra(ConnectivityManager.EXTRA_OTHER_NETWORK_INFO);
+					NetworkInfo networkInfo = intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
+					NetworkInfo otherNetworkInfo = intent.getParcelableExtra(ConnectivityManager.EXTRA_OTHER_NETWORK_INFO);
 					boolean isFailover = intent.getBooleanExtra(
 							ConnectivityManager.EXTRA_IS_FAILOVER, false);
 					Log.d(TAG, "networkInfo=" + networkInfo);
@@ -198,6 +198,7 @@ public class NetworkState
 				if (AndroidUtils.DEBUG) {
 					Log.e("IP address", "activeNetwork Ethernet");
 				}
+				//noinspection ResourceType ETHERNET_SERVICE is real! :)
 				Object oEthernetManager = context.getSystemService(ETHERNET_SERVICE);
 				if (oEthernetManager != null) {
 
@@ -279,7 +280,7 @@ public class NetworkState
 					InetAddress inetAddress = enumIpAddr.nextElement();
 					if (!inetAddress.isLoopbackAddress()
 							&& (inetAddress instanceof Inet4Address)) {
-						ipAddress = inetAddress.getHostAddress().toString();
+						ipAddress = inetAddress.getHostAddress();
 
 						if (AndroidUtils.DEBUG) {
 							Log.e("IP address",
@@ -305,7 +306,7 @@ public class NetworkState
 				}
 			}
 		} catch (SocketException ex) {
-			Log.e("Socket exception in GetIP Address of Utilities", ex.toString());
+			Log.e("IPAddress", ex.toString());
 		}
 		return ipAddress;
 	}

@@ -38,9 +38,9 @@ public class TextViewFlipper
 
 	private int animId;
 
-	public static interface FlipValidator
+	public interface FlipValidator
 	{
-		public boolean isStillValid();
+		boolean isStillValid();
 	}
 
 	public TextViewFlipper(int animId) {
@@ -110,6 +110,9 @@ public class TextViewFlipper
 	}
 
 	private void flipIt(View view, AnimationListener l) {
+		// Should do this, to prevent destorying of list row while animating
+		// would have to set to false in listener
+		//view.setHasTransientState(true);
 		Animation animation = AnimationUtils.loadAnimation(view.getContext(),
 				animId);
 		// Some Android versions won't animate when view is GONE

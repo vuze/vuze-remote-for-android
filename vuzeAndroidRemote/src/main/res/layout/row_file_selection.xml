@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.android.music.CheckableRelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	xmlns:tools="http://schemas.android.com/tools"
+<com.vuze.android.widget.CheckableRelativeLayout
 	android:id="@+id/filerow_layout"
-	android:layout_width="fill_parent"
-	android:layout_height="wrap_content"
-	android:background="@drawable/list_selector"
-	android:descendantFocusability="blocksDescendants" >
+																								 xmlns:android="http://schemas.android.com/apk/res/android"
+																								 xmlns:tools="http://schemas.android.com/tools"
+																								 android:layout_width="fill_parent"
+																								 android:layout_height="wrap_content"
+																								 android:background="@drawable/list_selector"
+																								 android:descendantFocusability="blocksDescendants">
 
 	<LinearLayout
 		android:id="@+id/filerow_indentlayout"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:layout_alignBottom="@+id/filerow_meh"
-		android:background="#f4f4f4" >
+		tools:layout_width="40dp"
+		>
 
 		<ImageView
 			android:id="@+id/filerow_indent"
@@ -25,7 +27,8 @@
 			android:paddingTop="0dp"
 			android:scaleType="matrix"
 			android:src="@drawable/folder_levels"
-			tools:ignore="Suspicious0dp,ContentDescription" />
+			tools:ignore="Suspicious0dp,ContentDescription"
+			/>
 
 	</LinearLayout>
 
@@ -37,13 +40,13 @@
 		android:layout_alignParentTop="true"
 		android:layout_toRightOf="@+id/filerow_indentlayout"
 		android:measureWithLargestChild="true"
-		android:orientation="horizontal" >
+		android:orientation="horizontal">
 
 		<RelativeLayout
 			android:id="@+id/filerow_leftlayout"
 			android:layout_width="wrap_content"
 			android:layout_height="fill_parent"
-			android:gravity="center_vertical" >
+			android:gravity="center_vertical">
 
 			<ImageButton
 				android:id="@+id/filerow_btn_dl"
@@ -51,17 +54,17 @@
 				android:layout_height="wrap_content"
 				android:layout_centerVertical="true"
 				android:adjustViewBounds="true"
+				android:contentDescription="@string/filerow_btn_dl"
 				android:padding="6dp"
 				android:scaleType="center"
-				android:contentDescription="@string/filerow_btn_dl"
-				android:src="@drawable/btn_want" />
+				android:src="@drawable/btn_want"/>
 
 		</RelativeLayout>
 
 		<RelativeLayout
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content"
-			android:paddingLeft="5dp" >
+			android:paddingLeft="5dp">
 
 			<TextView
 				android:id="@+id/filerow_name"
@@ -70,7 +73,8 @@
 				android:layout_marginRight="10dp"
 				android:layout_toRightOf="@+id/filerow_progress"
 				android:textAppearance="?android:attr/textAppearanceMedium"
-				android:textSize="@dimen/row_title_fontsize" />
+				android:textSize="@dimen/row_title_fontsize"
+				tools:text="FileName.txt"/>
 
 			<TextView
 				android:id="@+id/filerow_info"
@@ -78,10 +82,10 @@
 				android:layout_height="wrap_content"
 				android:layout_alignLeft="@+id/filerow_name"
 				android:layout_below="@+id/filerow_name"
-				android:layout_toLeftOf="@+id/filerow_info"
 				android:gravity="bottom"
 				android:paddingBottom="3dp"
-				android:textAppearance="?android:attr/textAppearanceSmall" />
+				android:textAppearance="?android:attr/textAppearanceSmall"
+				tools:text="500 MB"/>
 
 			<TextView
 				android:id="@+id/filerow_state"
@@ -91,14 +95,15 @@
 				android:layout_below="@+id/filerow_name"
 				android:gravity="bottom"
 				android:paddingBottom="3dp"
-				android:textAppearance="?android:attr/textAppearanceSmall" />
+				android:textAppearance="?android:attr/textAppearanceSmall"
+				tools:text="State"/>
 
 			<View
 				android:id="@+id/filerow_divider"
 				android:layout_width="fill_parent"
 				android:layout_height="1dp"
 				android:layout_alignParentBottom="true"
-				android:background="#ddd" />
+				android:background="#ddd"/>
 
 			<ProgressBar
 				android:id="@+id/filerow_progress"
@@ -112,22 +117,24 @@
 				android:maxWidth="500dp"
 				android:minHeight="70dp"
 				android:minWidth="70dp"
-				android:progress="10000"
-				android:progressDrawable="@drawable/progress_ring_files" />
+				android:progressDrawable="@drawable/progress_ring_files"
+				tools:progress="8000"/>
 
 			<TextView
 				android:id="@+id/filerow_progress_pct"
 				android:layout_width="fill_parent"
-		android:layout_height="70dp"
-		android:layout_alignBottom="@+id/filerow_progress"
-		android:layout_alignRight="@+id/filerow_progress"
-		android:layout_alignTop="@+id/filerow_progress"
-		android:gravity="center|center_vertical"
-		android:textAlignment="center"
-		android:textAppearance="?android:attr/textAppearanceMedium"
-		android:textSize="15sp" />
+				android:layout_height="70dp"
+				android:layout_alignBottom="@+id/filerow_progress"
+
+				android:layout_alignRight="@+id/filerow_progress"
+				android:layout_alignTop="@+id/filerow_progress"
+				android:gravity="center|center_vertical"
+				android:textAlignment="center"
+				android:textAppearance="?android:attr/textAppearanceMedium"
+				android:textSize="15sp"
+				tools:text="80%"/>
 		</RelativeLayout>
 
 	</LinearLayout>
 
-</com.android.music.CheckableRelativeLayout>
+</com.vuze.android.widget.CheckableRelativeLayout>

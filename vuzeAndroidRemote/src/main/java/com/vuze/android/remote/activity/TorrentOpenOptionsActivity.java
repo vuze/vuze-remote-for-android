@@ -16,30 +16,31 @@
 
 package com.vuze.android.remote.activity;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
-import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.*;
+import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 
-import com.astuetz.PagerSlidingTabStrip;
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.SessionInfo.RpcExecuter;
+import com.vuze.android.remote.adapter.OpenOptionsPagerAdapter;
 import com.vuze.android.remote.dialog.DialogFragmentMoveData.DialogFragmentMoveDataListener;
-import com.vuze.android.remote.fragment.OpenOptionsFilesFragment;
-import com.vuze.android.remote.fragment.OpenOptionsGeneralFragment;
-import com.vuze.android.remote.fragment.OpenOptionsPagerAdapter;
+
+import com.vuze.android.remote.fragment.*;
 import com.vuze.android.remote.rpc.TransmissionRPC;
+import com.vuze.util.JSONUtils;
+import com.vuze.util.MapUtils;
 
 /**
  * Open Torrent: Options Dialog (Window)
@@ -53,31 +54,33 @@ import com.vuze.android.remote.rpc.TransmissionRPC;
  * <P>
  * Related classes: 
  * {@link OpenOptionsPagerAdapter}
- * {@link OpenOptionsGeneralFragment} 
+ * {@link OpenOptionsGeneralFragment}
  * {@link OpenOptionsFilesFragment}
+ * {@link OpenOptionsTagsFragment}
  */
 public class TorrentOpenOptionsActivity
-	extends ActionBarActivity
+	extends AppCompatActivity
 	implements DialogFragmentMoveDataListener
 {
 	private static final String TAG = "TorrentOpenOptions";
 
 	private SessionInfo sessionInfo;
 
-
 	private long torrentID;
-
-	private OpenOptionsPagerAdapter pagerAdapter;
 
 	protected boolean positionLast = true;
 
 	protected boolean stateQueued = true;
+
+	// Either Long (uid) or String (name)
+	List<Object> selectedTags = new ArrayList<>();
 
 	/* (non-Javadoc)
 	* @see android.support.v4.app.FragmentActivity#onCreate(android.os.Bundle)
 	*/
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		AndroidUtilsUI.onCreate(this);
 		super.onCreate(savedInstanceState);
 
 		Intent intent = getIntent();
@@ -101,7 +104,7 @@ public class TorrentOpenOptionsActivity
 			finish();
 			return;
 		}
-		
+
 		Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
 		if (torrent == null) {
 			Log.e(TAG, "torrent NULL");
@@ -109,28 +112,17 @@ public class TorrentOpenOptionsActivity
 			return;
 		}
 
-		
-
 		RemoteProfile remoteProfile = sessionInfo.getRemoteProfile();
 		positionLast = remoteProfile.isAddPositionLast();
 		stateQueued = remoteProfile.isAddStateQueued();
-		
+
 		setContentView(R.layout.activity_torrent_openoptions);
-
 		setupActionBar();
-
-		ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
-		PagerSlidingTabStrip tabs = (PagerSlidingTabStrip) findViewById(R.id.pager_title_strip);
-		if (viewPager != null && tabs != null) {
-			pagerAdapter = new OpenOptionsPagerAdapter(
-					getSupportFragmentManager(), viewPager, tabs);
-		} else {
-			pagerAdapter = null;
-		}
 
 		Button btnAdd = (Button) findViewById(R.id.openoptions_btn_add);
 		Button btnCancel = (Button) findViewById(R.id.openoptions_btn_cancel);
-		CompoundButton cbSilentAdd = (CompoundButton) findViewById(R.id.openoptions_cb_silentadd);
+		CompoundButton cbSilentAdd = (CompoundButton) findViewById(
+				R.id.openoptions_cb_silentadd);
 
 		if (btnAdd != null) {
 			btnAdd.setOnClickListener(new OnClickListener() {
@@ -142,6 +134,7 @@ public class TorrentOpenOptionsActivity
 		}
 		if (btnCancel != null) {
 			btnCancel.setOnClickListener(new OnClickListener() {
+
 				@Override
 				public void onClick(View v) {
 					finish(false);
@@ -151,11 +144,13 @@ public class TorrentOpenOptionsActivity
 		if (cbSilentAdd != null) {
 			cbSilentAdd.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 				@Override
-				public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+				public void onCheckedChanged(CompoundButton buttonView,
+						boolean isChecked) {
 					sessionInfo.getRemoteProfile().setAddTorrentSilently(isChecked);
 				}
 			});
-			cbSilentAdd.setChecked(sessionInfo.getRemoteProfile().isAddTorrentSilently());
+			cbSilentAdd.setChecked(
+					sessionInfo.getRemoteProfile().isAddTorrentSilently());
 		}
 
 	}
@@ -166,31 +161,35 @@ public class TorrentOpenOptionsActivity
 			sessionInfo.executeRpc(new RpcExecuter() {
 				@Override
 				public void executeRpc(TransmissionRPC rpc) {
-					rpc.simpleRpcCall(positionLast  ? "queue-move-bottom"
-							: "queue-move-top", new long[] {
-						torrentID
-					}, null);
-					if (stateQueued) {
-						rpc.startTorrents("OpenOptions", new long[] {
+					long[] ids = new long[] {
 							torrentID
-						}, false, null);
+					};
+					rpc.simpleRpcCall(
+							positionLast ? "queue-move-bottom" : "queue-move-top",
+							ids, null);
+					if (selectedTags != null) {
+						Object[] selectedTagObjects = selectedTags.toArray();
+						rpc.addTagToTorrents("OpenOptions", ids, selectedTagObjects);
+					}
+					if (stateQueued) {
+						rpc.startTorrents("OpenOptions", ids, false, null);
 					} else {
 						// should be already stopped, but stop anyway
-						rpc.stopTorrents("OpenOptions", new long[] {
-							torrentID
-						}, null);
+						rpc.stopTorrents("OpenOptions", ids, null);
 					}
 				}
 			});
 		} else {
 			// remove the torrent
 			sessionInfo.executeRpc(new RpcExecuter() {
+
 				@Override
 				public void executeRpc(TransmissionRPC rpc) {
 					rpc.removeTorrent(new long[] {
 						torrentID
 					}, true, null);
 				}
+
 			});
 		}
 		if (!isFinishing()) {
@@ -217,30 +216,26 @@ public class TorrentOpenOptionsActivity
 		actionBar.setSubtitle(remoteProfile.getNick());
 	}
 
-	/* (non-Javadoc)
-	 * @see android.support.v4.app.FragmentActivity#onPause()
-	 */
 	@Override
-	protected void onPause() {
-		if (pagerAdapter != null) {
-			pagerAdapter.onPause();
-		}
+	protected void onSaveInstanceState(Bundle outState) {
+		super.onSaveInstanceState(outState);
 
-		super.onPause();
+		//outState.putInt("viewpagerid", viewpagerid);
+
+		String s = JSONUtils.encodeToJSON(selectedTags);
+		outState.putString("selectedTags", s);
 	}
 
-	/* (non-Javadoc)
-	 * @see android.support.v4.app.FragmentActivity#onResume()
-	 */
 	@Override
-	protected void onResume() {
-		super.onResume();
+	protected void onRestoreInstanceState(Bundle savedInstanceState) {
+		super.onRestoreInstanceState(savedInstanceState);
 
-		if (pagerAdapter != null) {
-			pagerAdapter.onResume();
+		String selectedTagsString = savedInstanceState.getString("selectedTags");
+		if (selectedTagsString != null) {
+			selectedTags = JSONUtils.decodeJSONList(selectedTagsString);
 		}
 	}
-	
+
 	@Override
 	protected void onStart() {
 		super.onStart();
@@ -254,7 +249,7 @@ public class TorrentOpenOptionsActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see android.support.v7.app.ActionBarActivity#onBackPressed()
+	 * @see android.support.v7.app.AppCompatActivity#onBackPressed()
 	 */
 	@Override
 	public void onBackPressed() {
@@ -287,9 +282,37 @@ public class TorrentOpenOptionsActivity
 	public void locationChanged(String location) {
 		List<Fragment> fragments = getSupportFragmentManager().getFragments();
 		for (Fragment fragment : fragments) {
-			if (fragment.isAdded() && (fragment instanceof OpenOptionsGeneralFragment)) {
+			if (fragment.isAdded()
+					&& (fragment instanceof OpenOptionsGeneralFragment)) {
 				((OpenOptionsGeneralFragment) fragment).locationChanged(location);
 			}
 		}
+	}
+
+	public void flipTagState(Map mapTags, String word) {
+		Object id = MapUtils.getMapObject(mapTags, "uid", word, Object.class);
+		if (selectedTags.contains(id)) {
+			selectedTags.remove(id);
+		} else {
+			selectedTags.add(id);
+		}
+	}
+
+	/**
+	 * Retrieve the list of selected tags
+	 *
+	 * @return The list of selected tags.  Each item is either a Long (uid) or
+	 * String (name)
+	 */
+	public List<Object> getSelectedTags() {
+		return selectedTags;
+	}
+
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if (AndroidUtilsUI.handleCommonKeyDownEvents(this, keyCode, event)) {
+			return true;
+		}
+		return super.onKeyDown(keyCode, event);
 	}
 }

@@ -26,48 +26,48 @@ import java.util.Locale;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.SearchManager;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Window;
 import android.webkit.*;
-import android.widget.SearchView;
 
 import com.vuze.android.remote.*;
 
 /**
+ * Activity to show search results web page.
+ *
  * TODO: handle torrent download better
+ * TODO: Integrate into sidebar
  */
 @SuppressLint("SetJavaScriptEnabled")
 public class MetaSearch
-	extends ActionBarActivity
+	extends AppCompatActivity
 {
 	protected static final String TAG = "MetaSearch";
 
 	private WebView myWebView;
 
-	private SearchView mSearchView;
-
 	@SuppressWarnings("deprecation")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
+		AndroidUtilsUI.onCreate(this);
 		super.onCreate(savedInstanceState);
 
 		Intent intent = getIntent();
 		if (AndroidUtils.DEBUG) {
 			System.out.println("metasearch intent = " + intent);
-			System.out.println("Type:" + intent.getType() + ";"
-					+ intent.getDataString());
+			System.out.println(
+					"Type:" + intent.getType() + ";" + intent.getDataString());
 		}
 
 		setContentView(R.layout.activity_metasearch);
@@ -127,7 +127,8 @@ public class MetaSearch
 						String host = uri.getHost();
 						Bundle appData = getIntent().getBundleExtra(SearchManager.APP_DATA);
 						if (appData != null) {
-							String remoteProfileID = appData.getString(SessionInfoManager.BUNDLE_KEY);
+							String remoteProfileID = appData.getString(
+									SessionInfoManager.BUNDLE_KEY);
 							if (remoteProfileID != null) {
 								SessionInfo sessionInfo = SessionInfoManager.getSessionInfo(
 										remoteProfileID, MetaSearch.this);
@@ -180,7 +181,11 @@ public class MetaSearch
 
 				Bundle appData = getIntent().getBundleExtra(SearchManager.APP_DATA);
 				if (appData != null) {
-					String remoteProfileID = appData.getString(SessionInfoManager.BUNDLE_KEY);
+					if (host.contains(":")) {
+						host = host.substring(0, host.indexOf(':'));
+					}
+					String remoteProfileID = appData.getString(
+							SessionInfoManager.BUNDLE_KEY);
 					if (remoteProfileID != null) {
 						SessionInfo sessionInfo = SessionInfoManager.getSessionInfo(
 								remoteProfileID, MetaSearch.this);
@@ -190,6 +195,9 @@ public class MetaSearch
 								handler.proceed(sessionInfo.getRemoteProfile().getUser(),
 										sessionInfo.getRemoteProfile().getAC());
 								return;
+							} else {
+								Log.d(TAG, "Not Handling " + host + " / " + realm + " not in "
+										+ remoteProfile.getHost());
 							}
 						}
 					}
@@ -210,8 +218,9 @@ public class MetaSearch
 					String path = uri.getPath();
 					if (host != null
 							&& host.toLowerCase(Locale.getDefault()).endsWith("vuze.com")
-							&& (path == null || !path.toLowerCase(Locale.getDefault()).contains(
-									".torrent"))) {
+							&& (path == null
+									|| !path.toLowerCase(Locale.getDefault()).contains(
+											".torrent"))) {
 						Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
 						startActivity(intent);
 					} else {
@@ -281,7 +290,8 @@ public class MetaSearch
 			if (AndroidUtils.DEBUG) {
 				System.out.println("hasAppData=" + appData.toString());
 			}
-			String searchSource = appData.getString("com.vuze.android.remote.searchsource");
+			String searchSource = appData.getString(
+					"com.vuze.android.remote.searchsource");
 			String ac = appData.getString("com.vuze.android.remote.ac");
 			if (AndroidUtils.DEBUG) {
 				System.out.println("ss=" + searchSource + ";ac=" + ac);
@@ -357,7 +367,7 @@ public class MetaSearch
 		// this doesn't work because we don't pass ac information..
 		//NavUtils.navigateUpFromSameTask(this);
 		//return true;
-
+	
 		/*
 		Intent upIntent = NavUtils.getParentActivityIntent(this);
 		System.out.println("upIntent = " + upIntent.toString());
@@ -393,14 +403,17 @@ public class MetaSearch
 		return super.onCreateOptionsMenu(menu);
 	}
 
+	/*
 	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
 	private void setupSearchView(MenuItem searchItem) {
-		mSearchView = (SearchView) searchItem.getActionView();
-
+		SearchView mSearchView = (SearchView) searchItem.getActionView();
+	
 		SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
-		mSearchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+		mSearchView
+				.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
 		mSearchView.setIconifiedByDefault(true);
-
+	
 		//		searchItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
 	}
+	*/
 }

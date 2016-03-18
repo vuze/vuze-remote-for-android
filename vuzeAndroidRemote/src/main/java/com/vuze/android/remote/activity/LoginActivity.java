@@ -17,17 +17,20 @@
 
 package com.vuze.android.remote.activity;
 
+import android.app.Activity;
+import android.content.Intent;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.graphics.PixelFormat;
 import android.graphics.RadialGradient;
 import android.graphics.Shader;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RectShape;
+import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.text.SpannableStringBuilder;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ImageSpan;
@@ -41,12 +44,13 @@ import com.vuze.android.remote.*;
 import com.vuze.android.remote.dialog.DialogFragmentAbout;
 import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile;
 import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile.GenericRemoteProfileListener;
+import com.vuze.android.remote.spanbubbles.SpanBubbles;
 
 /**
  * TODO: QR Scan button that links to QR reader apps like QR Droid (http://qrdroid.com/android-developers/ )
  */
 public class LoginActivity
-	extends ActionBarActivity
+	extends AppCompatActivity
 	implements GenericRemoteProfileListener
 {
 
@@ -65,6 +69,7 @@ public class LoginActivity
 		getWindow().setFormat(PixelFormat.RGBA_8888);
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_DITHER);
 
+		AndroidUtilsUI.onCreate(this);
 		super.onCreate(savedInstanceState);
 
 		if (AndroidUtils.DEBUG) {
@@ -77,6 +82,7 @@ public class LoginActivity
 		setContentView(R.layout.activity_login);
 
 		textAccessCode = (EditText) findViewById(R.id.editTextAccessCode);
+		assert textAccessCode != null;
 
 		RemoteProfile lastUsedRemote = appPreferences.getLastUsedRemote();
 		if (lastUsedRemote != null
@@ -101,7 +107,7 @@ public class LoginActivity
 		setupGuideText(tvLoginGuide);
 		TextView tvLoginGuide2 = (TextView) findViewById(R.id.login_guide2);
 		setupGuideText(tvLoginGuide2);
-		
+
 		ActionBar actionBar = getSupportActionBar();
 		if (actionBar != null) {
 			actionBar.setDisplayShowHomeEnabled(true);
@@ -110,18 +116,16 @@ public class LoginActivity
 	}
 
 	private void setupGuideText(TextView tvLoginGuide) {
-		Resources res = getResources();
-
 		tvLoginGuide.setMovementMethod(LinkMovementMethod.getInstance());
 		CharSequence text = tvLoginGuide.getText();
 
 		SpannableStringBuilder ss = new SpannableStringBuilder(text);
 		String string = text.toString();
 
-		AndroidUtils.setSpanBubbles(ss, string, "|", tvLoginGuide.getPaint(),
-				res.getColor(R.color.login_text_color),
-				res.getColor(R.color.login_textbubble_color),
-				res.getColor(R.color.login_text_color));
+		new SpanBubbles().setSpanBubbles(ss, string, "|", tvLoginGuide.getPaint(),
+				AndroidUtilsUI.getStyleColor(this, R.attr.login_text_color),
+				AndroidUtilsUI.getStyleColor(this, R.attr.login_textbubble_color),
+				AndroidUtilsUI.getStyleColor(this, R.attr.login_text_color));
 
 		int indexOf = string.indexOf("@@");
 		if (indexOf >= 0) {
@@ -134,7 +138,8 @@ public class LoginActivity
 					newHeight = 20;
 				}
 			}
-			Drawable drawable = res.getDrawable(R.drawable.guide_icon);
+			Drawable drawable = ContextCompat.getDrawable(this,
+					R.drawable.guide_icon);
 			int oldWidth = drawable.getIntrinsicWidth();
 			int oldHeight = drawable.getIntrinsicHeight();
 			int newWidth = (oldHeight > 0) ? (oldWidth * newHeight) / oldHeight
@@ -158,22 +163,24 @@ public class LoginActivity
 		if (hasFocus) {
 			setBackgroundGradient();
 		}
-	};
+	}
 
 	@SuppressWarnings("deprecation")
 	private void setBackgroundGradient() {
 
 		ViewGroup mainLayout = (ViewGroup) findViewById(R.id.main_loginlayout);
+		assert mainLayout != null;
 		int h = mainLayout.getHeight();
 		int w = mainLayout.getWidth();
 		View viewCenterOn = findViewById(R.id.login_frog_logo);
+		assert viewCenterOn != null;
 		int top = viewCenterOn.getTop() + (viewCenterOn.getHeight() / 2);
 
 		RectShape shape = new RectShape();
 		ShapeDrawable mDrawable = new ShapeDrawable(shape);
 		RadialGradient shader = new RadialGradient(w / 2, top, w * 2 / 3,
-				getResources().getColor(R.color.login_grad_color_1),
-				getResources().getColor(R.color.login_grad_color_2),
+				AndroidUtilsUI.getStyleColor(this, R.attr.login_grad_color_1),
+				AndroidUtilsUI.getStyleColor(this, R.attr.login_grad_color_2),
 				Shader.TileMode.CLAMP);
 		mDrawable.setBounds(0, 0, w, h);
 		mDrawable.getPaint().setShader(shader);
@@ -206,7 +213,6 @@ public class LoginActivity
 		VuzeEasyTracker.getInstance(this).activityStop(this);
 	}
 
-
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
@@ -217,23 +223,40 @@ public class LoginActivity
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 
-		switch (item.getItemId()) {
-			case R.id.action_adv_login: {
-				DialogFragmentGenericRemoteProfile dlg = new DialogFragmentGenericRemoteProfile();
-				AndroidUtils.showDialog(dlg, getSupportFragmentManager(),
-						"GenericRemoteProfile");
-
-				return true;
-			}
-			case R.id.action_about: {
-				DialogFragmentAbout dlg = new DialogFragmentAbout();
-				AndroidUtils.showDialog(dlg, getSupportFragmentManager(),
-						"About");
-				return true;
-			}
+		int itemId = item.getItemId();
+		if (itemId == R.id.action_adv_login) {
+			DialogFragmentGenericRemoteProfile dlg = new DialogFragmentGenericRemoteProfile();
+			AndroidUtils.showDialog(dlg, getSupportFragmentManager(),
+					"GenericRemoteProfile");
+			return true;
+		} else if (itemId == R.id.action_about) {
+			DialogFragmentAbout dlg = new DialogFragmentAbout();
+			AndroidUtils.showDialog(dlg, getSupportFragmentManager(), "About");
+			return true;
+		} else if (itemId == R.id.action_import_prefs) {
+			AndroidUtils.openFileChooser(this, "application/json",
+					TorrentViewActivity.FILECHOOSER_RESULTCODE);
 		}
 
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "onActivityResult: " + requestCode + "/" + resultCode);
+		}
+		if (requestCode == TorrentViewActivity.FILECHOOSER_RESULTCODE) {
+			Uri uri = intent == null || resultCode != Activity.RESULT_OK ? null
+					: intent.getData();
+			if (uri == null) {
+				return;
+			}
+			appPreferences.importPrefs(this, uri);
+			if (appPreferences.getNumRemotes() > 0) {
+				new RemoteUtils(this).openRemoteList();
+			}
+		}
 	}
 
 	public void loginButtonClicked(View v) {
@@ -246,7 +269,8 @@ public class LoginActivity
 	}
 
 	@Override
-	public void profileEditDone(RemoteProfile oldProfile, RemoteProfile newProfile) {
+	public void profileEditDone(RemoteProfile oldProfile,
+			RemoteProfile newProfile) {
 		new RemoteUtils(this).openRemote(newProfile, false);
 	}
 

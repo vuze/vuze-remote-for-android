@@ -7,25 +7,29 @@ import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.internal.view.SupportMenuItem;
 import android.support.v4.view.MenuItemCompat;
-import android.support.v7.internal.view.menu.MenuItemImpl;
 import android.support.v7.view.ActionMode.Callback;
+import android.support.v7.view.menu.MenuItemImpl;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.util.TypedValue;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.SubMenu;
+import android.view.*;
 
 public class ActionBarToolbarSplitter
 {
-	private static final String TAG = "ActionBarToolbarSplitter";
+	private static final String TAG = "ABToolbarSplitter";
 
 	public static final boolean DEBUG_AB_METRICS = false;
+
+	// From ActionMenuView
+	static final int MIN_CELL_SIZE = 56; // dips
+	// From ActionMenuView
+
+	static final int GENERATED_ITEM_PADDING = 4; // dips
 
 	public static void buildActionBar(final FragmentActivity activity,
 			final Callback callback, int menuRes, Menu menu, Toolbar tb) {
 		Menu origMenu = menu;
-		if (tb != null) {
+		boolean hasToolbar = tb != null && tb.getVisibility() == View.VISIBLE;
+		if (hasToolbar) {
 			menu = tb.getMenu();
 		}
 		if (menu.size() > 0) {
@@ -35,7 +39,7 @@ public class ActionBarToolbarSplitter
 
 		// if Menu is a Submenu, we are calling it to fill one of ours, instead
 		// of the Android OS calling
-		if (tb == null || (origMenu instanceof SubMenu)) {
+		if (!hasToolbar || (origMenu instanceof SubMenu)) {
 			return;
 		}
 
@@ -74,12 +78,18 @@ public class ActionBarToolbarSplitter
 	}
 
 	public static void prepareToolbar(Menu menu, Toolbar tb) {
-		if (tb == null) {
+		prepareToolbar(menu, tb, false);
+	}
+
+	public static void prepareToolbar(Menu menu, Toolbar tb, boolean showText) {
+		boolean hasToolbar = tb != null && tb.getVisibility() == View.VISIBLE;
+		if (!hasToolbar) {
 			return;
 		}
 
+		View firstChild = tb.getChildAt(0);
 		int size = menu.size();
-		int widthRemaining = tb.getChildAt(0).getWidth();
+		int widthRemaining = firstChild.getWidth();
 		if (widthRemaining == 0) {
 			widthRemaining = tb.getWidth();
 		}
@@ -88,25 +98,18 @@ public class ActionBarToolbarSplitter
 			Log.d(TAG, "Force Menu Items (" + size + ") visible " + widthRemaining);
 		}
 
-		/* Doesn't work.  I'm doing something wrong, but have no idea what
-		int[] attrs = new int[] { R.attr.paddingStart, R.attr.paddingEnd };
-		TypedArray a = tb.getContext().obtainStyledAttributes(R.style.Base_Widget_AppCompat_ActionButton, attrs);
-		int paddingStart = a.getDimensionPixelOffset(0, -1);
-		int paddingEnd = a.getDimensionPixelSize(1, -1);
-		a.recycle();
-		Log.d("Padding", "start=" + paddingEnd + ";" + paddingStart);
-		*/
+		final int widthPadding = firstChild.getPaddingLeft()
+				+ firstChild.getPaddingRight();
 
-		int hardCodedPaddingPx = (int) TypedValue.applyDimension(
-				TypedValue.COMPLEX_UNIT_DIP, 12, tb.getResources().getDisplayMetrics());
+		widthRemaining -= widthPadding;
+
+		int hardCodedPaddingPx = AndroidUtilsUI.dpToPx(GENERATED_ITEM_PADDING);
 
 		int padding = hardCodedPaddingPx * 2;
 
-		int hardCodedOverFlowWidth = (int) TypedValue.applyDimension(
-				TypedValue.COMPLEX_UNIT_DIP, 20, tb.getResources().getDisplayMetrics());
+		int minIconWidth = AndroidUtilsUI.dpToPx(MIN_CELL_SIZE);
 
-		int minIconWidth = (int) TypedValue.applyDimension(
-				TypedValue.COMPLEX_UNIT_DIP, 48, tb.getResources().getDisplayMetrics());
+		int hardCodedOverFlowWidth = minIconWidth;
 
 		widthRemaining -= hardCodedOverFlowWidth;
 
@@ -128,7 +131,7 @@ public class ActionBarToolbarSplitter
 			// check if app:showAsAction = "ifRoom"
 			if (widthRemaining <= 0) {
 				if (DEBUG_AB_METRICS) {
-					Log.d(TAG, item.getTitle() + "; no space");
+					Log.d(TAG, item.getTitle() + "; no space. " + widthRemaining);
 				}
 
 				if (((MenuItemImpl) item).requiresActionButton()) {
@@ -139,8 +142,8 @@ public class ActionBarToolbarSplitter
 					|| ((MenuItemImpl) item).requiresActionButton()) {
 				Drawable icon = item.getIcon();
 				if (icon != null) {
-					int width = Math.max(minIconWidth, item.getIcon().getIntrinsicWidth()
-							+ padding);
+					int width = Math.max(minIconWidth,
+							item.getIcon().getIntrinsicWidth() + padding);
 
 					boolean outofSpace = widthRemaining < width;
 					boolean outofSpaceWithNoOverflow = widthRemaining
@@ -148,9 +151,10 @@ public class ActionBarToolbarSplitter
 					boolean isLast = i == size - 1;
 
 					if (DEBUG_AB_METRICS) {
-						Log.d(TAG, item.getTitle() + "/remaining=" + widthRemaining + "/w="
-								+ width + "/last= " + isLast + "; outofSpaceWithNoOverflow?"
-								+ outofSpaceWithNoOverflow);
+						Log.d(TAG,
+								item.getTitle() + "/remaining=" + widthRemaining + "/w=" + width
+										+ "/last= " + isLast + "; outofSpaceWithNoOverflow?"
+										+ outofSpaceWithNoOverflow);
 					}
 
 					widthRemaining -= width;
@@ -167,7 +171,8 @@ public class ActionBarToolbarSplitter
 				}
 
 				MenuItemCompat.setShowAsAction(item,
-						SupportMenuItem.SHOW_AS_ACTION_ALWAYS);
+						showText ? SupportMenuItem.SHOW_AS_ACTION_WITH_TEXT
+								: SupportMenuItem.SHOW_AS_ACTION_ALWAYS);
 			}
 		}
 	}

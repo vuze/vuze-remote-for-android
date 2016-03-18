@@ -19,9 +19,9 @@ package com.vuze.android.remote;
 
 import java.util.*;
 
-import android.content.Context;
+import com.vuze.util.MapUtils;
 
-import com.aelitis.azureus.util.MapUtils;
+import android.content.Context;
 
 @SuppressWarnings({
 	"rawtypes",
@@ -78,6 +78,8 @@ public class RemoteProfile
 
 	private static final String ID_SMALL_LISTS = "useSmallLists";
 
+	private static final String ID_LAST_BINDING_INFO = "lastBindingInfo";
+
 	private static final boolean DEFAULT_ADD_POSITION_LAST = true;
 
 	private static final boolean DEFAULT_ADD_STATE_QUEUED = true;
@@ -97,7 +99,7 @@ public class RemoteProfile
 	private int remoteType;
 
 	public RemoteProfile(int remoteType) {
-		mapRemote = new HashMap<String, Object>();
+		mapRemote = new HashMap<>();
 		this.remoteType = remoteType;
 		mapRemote.put(ID_ID,
 				Integer.toHexString((int) (Math.random() * Integer.MAX_VALUE)));
@@ -105,14 +107,14 @@ public class RemoteProfile
 
 	public RemoteProfile(Map mapRemote) {
 		if (mapRemote == null) {
-			mapRemote = new HashMap<String, Object>();
+			mapRemote = new HashMap<>();
 		}
 		this.mapRemote = mapRemote;
 		remoteType = getHost().length() > 0 ? TYPE_NORMAL : TYPE_LOOKUP;
 	}
 
 	public RemoteProfile(String user, String ac) {
-		mapRemote = new HashMap<String, Object>();
+		mapRemote = new HashMap<>();
 		mapRemote.put(ID_USER, user);
 		mapRemote.put(ID_AC, ac);
 		mapRemote.put(ID_ID, ac);
@@ -163,7 +165,7 @@ public class RemoteProfile
 
 	public Map<String, Object> getAsMap(boolean forSaving) {
 		if (forSaving && remoteType == TYPE_LOOKUP) {
-			Map<String, Object> map = new HashMap<String, Object>(mapRemote);
+			Map<String, Object> map = new HashMap<>(mapRemote);
 			map.remove(ID_HOST);
 			map.remove(ID_PORT);
 			return map;
@@ -214,7 +216,7 @@ public class RemoteProfile
 		if (mapSort != null) {
 			List mapList = MapUtils.getMapList(mapSort, ID_SORT_BY, null);
 			if (mapList != null) {
-				return (String[]) mapList.toArray(new String[0]);
+				return (String[]) mapList.toArray(new String[mapList.size()]);
 			}
 		}
 		return new String[] {
@@ -227,7 +229,7 @@ public class RemoteProfile
 		if (mapSort != null) {
 			List mapList = MapUtils.getMapList(mapSort, ID_SORT_ORDER, null);
 			if (mapList != null) {
-				return (Boolean[]) mapList.toArray(new Boolean[0]);
+				return (Boolean[]) mapList.toArray(new Boolean[mapList.size()]);
 			}
 		}
 		return new Boolean[] {
@@ -282,7 +284,7 @@ public class RemoteProfile
 	 * 0 for manual refresh.
 	 * < 0 for refresh impossible (not online)
 	 */
-	public long calcUpdateInterval(Context context) {
+	public long calcUpdateInterval() {
 		if (isLocalHost()) {
 			if (isUpdateIntervalEnabled()) {
 				return getUpdateInterval();
@@ -358,7 +360,7 @@ public class RemoteProfile
 		if (mapOpenOptionHashes == null) {
 			return Collections.emptyList();
 		}
-		return new ArrayList<String>(mapOpenOptionHashes.keySet());
+		return new ArrayList<>(mapOpenOptionHashes.keySet());
 	}
 
 	public void cleanupOpenOptionsWaiterList() {
@@ -439,6 +441,14 @@ public class RemoteProfile
 			mapRemote.remove(ID_SMALL_LISTS);
 		} else {
 			mapRemote.put(ID_SMALL_LISTS, smallLists);
+		}
+	}
+
+	public void setLastBindingInfo(Map bindingInfo) {
+		if (bindingInfo == null) {
+			mapRemote.remove(ID_LAST_BINDING_INFO);
+		} else {
+			mapRemote.put(ID_LAST_BINDING_INFO, bindingInfo);
 		}
 	}
 }

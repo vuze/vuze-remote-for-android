@@ -19,6 +19,7 @@ package com.vuze.android.remote.activity;
 
 import java.util.Map;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -26,7 +27,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.*;
@@ -35,14 +36,20 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.ListView;
 
-import com.aelitis.azureus.util.JSONUtils;
 import com.vuze.android.remote.*;
-import com.vuze.android.remote.dialog.*;
+import com.vuze.android.remote.adapter.ProfileArrayAdapter;
+import com.vuze.android.remote.dialog.DialogFragmentAbout;
+import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile;
 import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile.GenericRemoteProfileListener;
+import com.vuze.android.remote.dialog.DialogFragmentVuzeRemoteProfile;
 import com.vuze.android.remote.rpc.RPC;
+import com.vuze.util.JSONUtils;
 
+/**
+ * Profile Selector screen and Main Intent
+ */
 public class IntentHandler
-	extends ActionBarActivity
+	extends AppCompatActivity
 	implements GenericRemoteProfileListener
 {
 
@@ -59,6 +66,7 @@ public class IntentHandler
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "OnCreate");
 		}
+		AndroidUtilsUI.onCreate(this);
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_intent_handler);
 
@@ -69,11 +77,16 @@ public class IntentHandler
 		}
 
 		listview = (ListView) findViewById(R.id.lvRemotes);
+		assert listview != null;
 		listview.setItemsCanFocus(false);
 
 		adapter = new ProfileArrayAdapter(this);
 
 		listview.setAdapter(adapter);
+
+		if (AndroidUtils.DEBUG) {
+			Log.d("TUX1", "DS: " + intent.getDataString());
+		}
 
 		listview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 
@@ -85,7 +98,7 @@ public class IntentHandler
 				if (item instanceof RemoteProfile) {
 					RemoteProfile remote = (RemoteProfile) item;
 					new RemoteUtils(IntentHandler.this).openRemote(remote,
-							intent.getData() != null);
+							IntentHandler.this.getIntent().getData() != null);
 				}
 			}
 
@@ -107,7 +120,8 @@ public class IntentHandler
 	}
 
 	private boolean handleIntent(Intent intent, Bundle savedInstanceState) {
-		boolean forceProfileListOpen = (intent.getFlags() & Intent.FLAG_ACTIVITY_CLEAR_TOP) > 0;
+		boolean forceProfileListOpen = (intent.getFlags()
+				& Intent.FLAG_ACTIVITY_CLEAR_TOP) > 0;
 
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "ForceOpen? " + forceProfileListOpen);
@@ -234,8 +248,8 @@ public class IntentHandler
 				RemoteProfile localProfile = new RemoteProfile(
 						RemoteProfile.TYPE_NORMAL);
 				localProfile.setHost("localhost");
-				localProfile.setNick(getString(R.string.local_name,
-						android.os.Build.MODEL));
+				localProfile.setNick(
+						getString(R.string.local_name, android.os.Build.MODEL));
 				RemoteProfile[] newRemotes = new RemoteProfile[remotes.length + 1];
 				newRemotes[0] = localProfile;
 				System.arraycopy(remotes, 0, newRemotes, 1, remotes.length);
@@ -272,6 +286,8 @@ public class IntentHandler
 		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar_bottom);
 		ActionBarToolbarSplitter.buildActionBar(this, null,
 				R.menu.menu_intenthandler, menu, toolbar);
+
+		getMenuInflater().inflate(R.menu.menu_intenthandler_top, menu);
 		return true;
 	}
 
@@ -289,27 +305,43 @@ public class IntentHandler
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 
-		switch (item.getItemId()) {
-			case R.id.action_add_profile: {
-				Intent myIntent = new Intent(getIntent());
-				myIntent.setFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-				myIntent.setClass(IntentHandler.this, LoginActivity.class);
-
-				startActivity(myIntent);
-				return true;
-			}
-			case R.id.action_adv_login: {
-				return AndroidUtils.showDialog(
-						new DialogFragmentGenericRemoteProfile(),
-						getSupportFragmentManager(), "GenericRemoteProfile");
-			}
-			case R.id.action_about: {
-				return AndroidUtils.showDialog(new DialogFragmentAbout(),
-						getSupportFragmentManager(), "About");
-			}
+		int itemId = item.getItemId();
+		if (itemId == R.id.action_add_profile) {
+			Intent myIntent = new Intent(getIntent());
+			myIntent.setFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
+			myIntent.setClass(IntentHandler.this, LoginActivity.class);
+			startActivity(myIntent);
+			return true;
+		} else if (itemId == R.id.action_adv_login) {
+			return AndroidUtils.showDialog(new DialogFragmentGenericRemoteProfile(),
+					getSupportFragmentManager(), "GenericRemoteProfile");
+		} else if (itemId == R.id.action_about) {
+			return AndroidUtils.showDialog(new DialogFragmentAbout(),
+					getSupportFragmentManager(), "About");
+		} else if (itemId == R.id.action_export_prefs) {
+			appPreferences.exportPrefs(this);
+		} else if (itemId == R.id.action_import_prefs) {
+			AndroidUtils.openFileChooser(this, "application/json",
+					TorrentViewActivity.FILECHOOSER_RESULTCODE);
 		}
 
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+	public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "onActivityResult: " + requestCode + "/" + resultCode);
+		}
+		if (requestCode == TorrentViewActivity.FILECHOOSER_RESULTCODE) {
+			Uri uri = intent == null || resultCode != Activity.RESULT_OK ? null
+					: intent.getData();
+			if (uri == null) {
+				return;
+			}
+			appPreferences.importPrefs(this, uri);
+			adapter.refreshList();
+		}
 	}
 
 	/* (non-Javadoc)
@@ -342,27 +374,25 @@ public class IntentHandler
 
 		final RemoteProfile remoteProfile = (RemoteProfile) item;
 
-		switch (menuitem.getItemId()) {
-			case R.id.action_edit_pref:
-				editProfile(remoteProfile);
-
-				return true;
-			case R.id.action_delete_pref:
-				new AlertDialog.Builder(this).setTitle("Remove Profile?").setMessage(
-						"Configuration settings for profile '" + remoteProfile.getNick()
-								+ "' will be deleted.").setPositiveButton("Remove",
-						new DialogInterface.OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
-								appPreferences.removeRemoteProfile(remoteProfile.getID());
-								adapter.refreshList();
-							}
-						}).setNegativeButton(android.R.string.cancel,
-						new DialogInterface.OnClickListener() {
-							public void onClick(DialogInterface dialog, int which) {
-							}
-						}).setIcon(android.R.drawable.ic_dialog_alert).show();
-
-				return true;
+		int itemId = menuitem.getItemId();
+		if (itemId == R.id.action_edit_pref) {
+			editProfile(remoteProfile);
+			return true;
+		} else if (itemId == R.id.action_delete_pref) {
+			new AlertDialog.Builder(this).setTitle("Remove Profile?").setMessage(
+					"Configuration settings for profile '" + remoteProfile.getNick()
+							+ "' will be deleted.").setPositiveButton("Remove",
+									new DialogInterface.OnClickListener() {
+										public void onClick(DialogInterface dialog, int which) {
+											appPreferences.removeRemoteProfile(remoteProfile.getID());
+											adapter.refreshList();
+										}
+									}).setNegativeButton(android.R.string.cancel,
+											new DialogInterface.OnClickListener() {
+												public void onClick(DialogInterface dialog, int which) {
+												}
+											}).setIcon(android.R.drawable.ic_dialog_alert).show();
+			return true;
 		}
 		return super.onContextItemSelected(menuitem);
 	}
@@ -380,7 +410,8 @@ public class IntentHandler
 				"GenericRemoteProfile");
 	}
 
-	public void profileEditDone(RemoteProfile oldProfile, RemoteProfile newProfile) {
+	public void profileEditDone(RemoteProfile oldProfile,
+			RemoteProfile newProfile) {
 		adapter.refreshList();
 	}
 }

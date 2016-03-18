@@ -21,20 +21,27 @@ import java.net.URL;
 
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.WindowManager;
 
 import com.vuze.android.remote.*;
+import com.vuze.android.widget.UrlImageView;
 
+/**
+ * Very simple view that shows an image.  This is a fallback, in case the user
+ * doesn't not have a registered image intent
+ */
 public class ImageViewer
-	extends ActionBarActivity
+	extends AppCompatActivity
 {
 
 	private static final String TAG = "ImageViewer";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+
+		AndroidUtilsUI.onCreate(this);
 
 		super.onCreate(savedInstanceState);
 
@@ -48,9 +55,11 @@ public class ImageViewer
 		setContentView(R.layout.image_view);
 
 		final UrlImageView imageView = (UrlImageView) findViewById(R.id.imageView1);
-		
+
 		try {
-			imageView.setImageURL(new URL(getIntent().getData().toString()));
+			if (imageView != null) {
+				imageView.setImageURL(new URL(getIntent().getData().toString()));
+			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}

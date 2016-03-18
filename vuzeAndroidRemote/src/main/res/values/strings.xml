@@ -29,6 +29,7 @@
 		<item>Size</item>
 		<item>State</item>
 		<item>ETA</item>
+		<item># Files</item>
 		<item>Reverse Sort Order</item>
 	</string-array>
 
@@ -74,15 +75,14 @@
 	<string name="no_network_connection">No Network Connection</string>
 	<string name="no_file_chooser">No suitable File Manager was found</string>
 	<string name="no_intent">No suitable application was found to launch</string>
+	<string name="intent_security_fail">Security error while trying to launch app</string>
 	<string name="button_browse">Browse&#8230;</string>
 	<string name="error_remote_not_found">Unable to connect to your remote client.  It does not appear to be running.</string>
 	<string name="error_connecting">Error Connecting</string>
 	<string name="button_continue">Continue</string>
 	<string name="action_about">About Vuze Remote</string>
-	<string translatable="false" name="about_thanks">
+	<string name="about_thanks" translatable="false">
 &#xB7; <a href="https://github.com/alibaba/fastjson">Fast JSON Processor</a>, Apache License v2, &#169; 1999-2013 Alibaba Group Holding Ltd.
-\n
-&#xB7; <a href="https://github.com/nhnopensource/android-pull-to-refresh">nhnopensource / android-pull-to-refresh</a>, Apache License v2, &#169; 2011, 2012 Chris Banes, &#169; 2013 Naver Business Platform Corp.
 \n
 &#xB7; <a href="https://github.com/astuetz/PagerSlidingTabStrip">astuetz / PagerSlidingTabStrip</a>, Apache License v2, &#169; 2013 Andreas Stuetz
 \n
@@ -90,12 +90,13 @@
 \n
 &#xB7; <a href="https://github.com/rengwuxian/MaterialEditText">rengwuxian / MaterialEditText</a>, Apache License v2, &#169; 2014 rengwuxian
 \n
-&#xB7; <a href="https://github.com/BoD/android-switch-backport">BoD / android-switch-backport</a>, Apache License v2, &#169; 2012 Benoit \'BoD\' Lubek
+&#xB7; <a href="https://github.com/timusus/RecyclerView-FastScroll">timusus/RecyclerView-FastScroll</a>, Apache License v2, &#169; 2016 Tim Malseed
+\n
+&#xB7; <a href="https://google.github.io/material-design-icons/">Material Design Icons</a>, CC-BY 4.0
 </string>
 	<string name="about_thanks_header">Portions of this app thanks to:</string>
-	<string name="about_copyright">© 2013, 2014 Azureus Software, Inc.</string>
-	<string name="about_license">GPLv2+</string>
-	<string name="login_copyright">© 2013, 2014 Azureus Software, Inc. All Rights Reserved. Any use of Vuze® and Vuze+™ that violates the rights of any person or entity is not allowed. <a href="http://www.vuze.com/corp/legal.php">More</a></string>
+	<string name="about_copyright">© 2013–2016 Azureus Software, Inc.</string>
+	<string name="login_copyright">© 2013–2016 Azureus Software, Inc. All Rights Reserved. Any use of Vuze® and Vuze+™ that violates the rights of any person or entity is not allowed. <a href="http://www.vuze.com/corp/legal.php">More</a></string>
 	<string name="login_guide">Go to |Tools| > |Remote Pairing| in the Vuze desktop client to find your Remote Access Code.</string>
 	<string name="login_guide2">To configure a manual remote, try the <a href="vuze://remote/cmd=advlogin">Advanced Login</a>.  See the @@<a href="http://wiki.vuze.com/w/Android_Remote_Guide">Guide</a> for more help.</string>
 	<string name="dialog_delete_title">Remove Torrent?</string>
@@ -266,11 +267,10 @@ lawful and non-infringing content.</string>
 	<string name="torrent_url_add_failed_openurl">Open URL</string>
 	<string name="button_add">Add</string>
 	<string name="check_dont_ask_again">Don\'t ask again</string>
-	<string name="open_options_files_header">Files</string>
 	<string name="open_options_lbl_saveloc">Save Location</string>
 	<string name="one_click_edit_mode">One Click Edit Mode</string>
 	<string name="openoptions_sw_position">Initial State</string>
-	<string name="openoptions_sw_state">Queue Position:</string>
+	<string name="openoptions_sw_state">Queue Position</string>
 	<string name="openoptions_btn_editname">Edit Name</string>
 	<string name="openoptions_btn_editdir">Edit Save Location</string>
 	<string name="filerow_btn_dl">Toggle Want State</string>
@@ -291,6 +291,7 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 	<string name="rp_update_interval_mobile">Mobile Update Interval</string>
 	<string name="manual_refresh">Currently Manual</string>
 	<string name="menu_global_actions">Global Actions</string>
+	<string name="menu_actions">Actions</string>
 	<string name="openoptions_position_first">First</string>
 	<string name="openoptions_position_last">Last</string>
 	<string name="openoptions_state_queued">Queued</string>
@@ -300,4 +301,27 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 	<string name="torrent_row_line_split" translatable="false"> • </string>
 	<string name="torrent_row_share_ratio_circle">%.01f\nShare\nRatio</string>
 	<string name="torrent_row_share_ratio">%.01f Share Ratio</string>
+	<string name="connerror_pairing">Could not retrieve the location of your remote.  Please ensure you have internet access and try again.</string>
+	<string name="connerror_hostconnect">Could not connect to your remote machine</string>
+	<string name="about_version">Version %1$s (build %2$s). GPLv2+</string>
+
+	<string name="details_tab_tags">Tags</string>
+	<string name="create_new_tag">Create New Tag</string>
+	<string name="newtag.name">Name of Tag</string>
+	<string name="rp_show_open_options">Show open options dialog when opening new torrent</string>
+	<string name="tag_filter">Tag Filter</string>
+	<string name="text_filter">Text Filter</string>
+	<string name="select_multiple_items">Select Multiple Items</string>
+	<string name="torrent_actions_for">Torrent Actions for %1$s</string>
+	<string name="file_actions_for">File Actions for %1$s</string>
+	<string name="export_profiles">Export Profiles</string>
+	<string name="import_profiles">Import Profiles</string>
+	<plurals name="torrent_actions_for_multiple">
+		<item quantity="one">Actions for %1$d torrent</item>
+		<item quantity="other">Actions for %1$d torrents</item>
+	</plurals>
+	<plurals name="torrent_count">
+		<item quantity="one">%1$d torrent</item>
+		<item quantity="other">%1$d torrents</item>
+	</plurals>
 </resources>

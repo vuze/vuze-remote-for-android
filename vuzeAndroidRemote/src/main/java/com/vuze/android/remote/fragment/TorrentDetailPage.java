@@ -21,7 +21,7 @@ import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 
 import com.vuze.android.remote.*;
-import com.vuze.android.remote.fragment.TorrentPagerAdapter.PagerPosition;
+import com.vuze.android.remote.adapter.TorrentPagerAdapter.PagerPosition;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
 
 /**
@@ -48,6 +48,18 @@ public abstract class TorrentDetailPage
 	@Override
 	public void onStart() {
 		super.onStart();
+	}
+
+	@Override
+	public void onPause() {
+		super.onPause();
+
+		if (sessionInfo != null) {
+			sessionInfo.removeRefreshTriggerListener(this);
+			sessionInfo.removeTorrentListReceivedListener(this);
+		} else {
+			logD("No sessionInfo " + torrentID);
+		}
 	}
 
 	@Override
@@ -101,6 +113,7 @@ public abstract class TorrentDetailPage
 
 		if (sessionInfo != null) {
 			sessionInfo.removeRefreshTriggerListener(this);
+			sessionInfo.removeTorrentListReceivedListener(this);
 		} else {
 			logD("No sessionInfo " + torrentID);
 		}
@@ -132,6 +145,7 @@ public abstract class TorrentDetailPage
 
 		if (sessionInfo != null) {
 			sessionInfo.addRefreshTriggerListener(this);
+			sessionInfo.addTorrentListReceivedListener(this, false);
 		}
 
 		VuzeEasyTracker.getInstance(this).fragmentStart(this, getTAG());
