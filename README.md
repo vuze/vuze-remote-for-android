@@ -1,5 +1,7 @@
 # vuze-remote-for-android
 
+[![API](https://img.shields.io/badge/API-7%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=7) [![License](http://img.shields.io/badge/license-GPL-blue.svg)](LICENSE)
+
 Release source for Vuze Remote for Android, primarily created for f-droid building.
 
 Development repository at http://svn.vuze.com/public/android/remote/
@@ -30,12 +32,12 @@ Vuze client at http://www.vuze.com
 ### Libraries
 &#xB7; <a href="https://github.com/alibaba/fastjson">Fast JSON Processor</a>, Apache License v2, &#169; 1999-2013 Alibaba Group Holding Ltd.
 
-&#xB7; <a href="https://github.com/nhnopensource/android-pull-to-refresh">nhnopensource / android-pull-to-refresh</a>, Apache License v2, &#169; 2011, 2012 Chris Banes, &#169; 2013 Naver Business Platform Corp.
-
 &#xB7; <a href="https://github.com/astuetz/PagerSlidingTabStrip">astuetz / PagerSlidingTabStrip</a>, Apache License v2, &#169; 2013 Andreas Stuetz
 
 &#xB7; <a href="http://jcifs.samba.org/">jCIFS</a>, LGPL 2.1
 
 &#xB7; <a href="https://github.com/rengwuxian/MaterialEditText">rengwuxian / MaterialEditText</a>, Apache License v2, &#169; 2014 rengwuxian
 
-&#xB7; <a href="https://github.com/BoD/android-switch-backport">BoD / android-switch-backport</a>, Apache License v2, &#169; 2012 Benoit 'BoD' Lubek
+&#xB7; <a href="https://github.com/Nammari/RecyclerView-FastScroll">Nammari / RecyclerView-FastScrol</a>, Apache License v2, &#169; 2016 Tim Malseed
+
+&#xB7; <a href="https://google.github.io/material-design-icons/">Material Design Icons</a>, CC-BY 4.0
