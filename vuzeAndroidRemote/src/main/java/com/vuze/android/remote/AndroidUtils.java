@@ -87,7 +87,7 @@ public class AndroidUtils
 
 	public static final boolean DEBUG_MENU = DEBUG && false;
 
-	public static final boolean DEBUG_ADAPTER = DEBUG && false;
+	public static final boolean DEBUG_ADAPTER = DEBUG && true;
 
 	private static final String TAG = "Utils";
 

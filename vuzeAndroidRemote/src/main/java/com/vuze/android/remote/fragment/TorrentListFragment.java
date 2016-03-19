@@ -325,6 +325,14 @@ public class TorrentListFragment
 		}
 
 		long filterBy = remoteProfile.getFilterBy();
+		// Convert All Filter to tag if we have tags
+		if (filterBy == TorrentListAdapter.FILTERBY_ALL
+				&& sessionInfo.getSupportsTags()) {
+			Long tagAllUID = sessionInfo.getTagAllUID();
+			if (tagAllUID != null) {
+				filterBy = tagAllUID;
+			}
+		}
 		if (filterBy > 10) {
 			Map<?, ?> tag = sessionInfo.getTag(filterBy);
 
@@ -1276,6 +1284,14 @@ public class TorrentListFragment
 			sessionInfo.addRpcAvailableListener(this);
 			sessionInfo.addSessionSettingsChangedListeners(this);
 			sessionInfo.addTorrentListRefreshingListener(this, false);
+		}
+		if (torrentListAdapter != null) {
+			if (filterEditText != null && filterEditText.length() > 0) {
+				torrentListAdapter.getFilter().filter(filterEditText.getText());
+			}
+			if (tvSideFilterText != null && tvSideFilterText.length() > 0) {
+				torrentListAdapter.getFilter().filter(tvSideFilterText.getText());
+			}
 		}
 	}
 
