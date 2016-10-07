@@ -1,6 +1,6 @@
 /**
  * Copyright (C) Azureus Software, Inc, All Rights Reserved.
- *
+ * <p/>
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -19,17 +19,6 @@ package com.vuze.android.remote.activity;
 import java.util.List;
 import java.util.Map;
 
-import android.content.Intent;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-import android.os.Build;
-import android.os.Bundle;
-import android.support.v7.app.*;
-import android.support.v7.view.ActionMode;
-import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.*;
-
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.NetworkState.NetworkStateListener;
 import com.vuze.android.remote.adapter.TorrentListRowFiller;
@@ -37,25 +26,36 @@ import com.vuze.android.remote.fragment.*;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
 import com.vuze.util.MapUtils;
 
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.os.Build;
+import android.os.Bundle;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.view.ActionMode;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.*;
+
 /**
  * Activity to hold {@link TorrentDetailsFragment}.  Used for narrow screens.
- *
+ * <p/>
  * Typically, we show the torrent row from {@link TorrentListFragment} and
  * a {@link TorrentDetailsFragment}, which is a tabbed Pager widget with
- * various groupings of information 
+ * various groupings of information
  */
 public class TorrentDetailsActivity
 	extends AppCompatActivity
 	implements TorrentListReceivedListener, SessionInfoGetter,
 	ActionModeBeingReplacedListener, NetworkStateListener
 {
-	private static final String TAG = "TorrentDetailsView";
+	static final String TAG = "TorrentDetailsView";
 
-	private long torrentID;
+	/* @Thunk */ long torrentID;
 
-	private SessionInfo sessionInfo;
+	/* @Thunk */ SessionInfo sessionInfo;
 
-	private TorrentListRowFiller torrentListRowFiller;
+	/* @Thunk */ TorrentListRowFiller torrentListRowFiller;
 
 	private boolean hasActionMode;
 
@@ -76,16 +76,6 @@ public class TorrentDetailsActivity
 			return;
 		}
 
-		Resources res = getResources();
-		if (!res.getBoolean(R.bool.showTorrentDetailsActivity)
-				&& !AndroidUtils.isTV()) {
-			if (AndroidUtils.DEBUG) {
-				Log.d(TAG, "Don't show TorrentDetailsActivity");
-			}
-			finish();
-			return;
-		}
-
 		torrentID = extras.getLong("TorrentID");
 		String remoteProfileID = extras.getString(SessionInfoManager.BUNDLE_KEY);
 		sessionInfo = SessionInfoManager.getSessionInfo(remoteProfileID, this);
@@ -100,8 +90,13 @@ public class TorrentDetailsActivity
 
 		setupActionBar();
 
-		View viewTorrentRow = findViewById(R.id.activity_torrent_detail_row);
+		final View viewTorrentRow = findViewById(R.id.activity_torrent_detail_row);
 		torrentListRowFiller = new TorrentListRowFiller(this, viewTorrentRow);
+
+		viewTorrentRow.setNextFocusDownId(R.id.pager_title_strip);
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
+			viewTorrentRow.setNextFocusForwardId(R.id.pager_title_strip);
+		}
 
 		viewTorrentRow.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -113,15 +108,14 @@ public class TorrentDetailsActivity
 			}
 		});
 
-		TorrentDetailsFragment detailsFrag = (TorrentDetailsFragment) getSupportFragmentManager()
-
-		.findFragmentById(R.id.frag_torrent_details);
+		TorrentDetailsFragment detailsFrag = (TorrentDetailsFragment) getSupportFragmentManager().findFragmentById(
+				R.id.frag_torrent_details);
 
 		if (detailsFrag != null) {
 			detailsFrag.setTorrentIDs(sessionInfo.getRemoteProfile().getID(),
 					new long[] {
 						torrentID
-			});
+					});
 		}
 
 	}
@@ -146,17 +140,18 @@ public class TorrentDetailsActivity
 		}
 	}
 
-	/** Fragments call VET, so it's redundant here
-	protected void onStart() {
-		super.onStart();
-		VuzeEasyTracker.getInstance(this).activityStart(this);
-	}
-	
-	protected void onStop() {
-		super.onStop();
-		VuzeEasyTracker.getInstance(this).activityStop(this);
-	}
-	*/
+	/**
+	 * Fragments call VET, so it's redundant here
+	 * protected void onStart() {
+	 * super.onStart();
+	 * VuzeEasyTracker.getInstance(this).activityStart(this);
+	 * }
+	 * <p/>
+	 * protected void onStop() {
+	 * super.onStop();
+	 * VuzeEasyTracker.getInstance(this).activityStop(this);
+	 * }
+	 */
 
 	@Override
 	public void rpcTorrentListReceived(String callID, List<?> addedTorrentMaps,
@@ -307,7 +302,8 @@ public class TorrentDetailsActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.fragment.ActionModeBeingReplacedListener#setActionModeBeingReplaced(boolean)
+	 * @see com.vuze.android.remote.fragment
+	 * .ActionModeBeingReplacedListener#setActionModeBeingReplaced(boolean)
 	 */
 	@Override
 	public void setActionModeBeingReplaced(ActionMode actionMode,
@@ -318,7 +314,8 @@ public class TorrentDetailsActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.fragment.ActionModeBeingReplacedListener#actionModeBeingReplacedDone()
+	 * @see com.vuze.android.remote.fragment
+	 * .ActionModeBeingReplacedListener#actionModeBeingReplacedDone()
 	 */
 	@Override
 	public void actionModeBeingReplacedDone() {
@@ -327,7 +324,8 @@ public class TorrentDetailsActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.fragment.ActionModeBeingReplacedListener#getActionMode()
+	 * @see com.vuze.android.remote.fragment
+	 * .ActionModeBeingReplacedListener#getActionMode()
 	 */
 	@Override
 	public ActionMode getActionMode() {
@@ -345,14 +343,16 @@ public class TorrentDetailsActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.fragment.ActionModeBeingReplacedListener#rebuildActionMode()
+	 * @see com.vuze.android.remote.fragment
+	 * .ActionModeBeingReplacedListener#rebuildActionMode()
 	 */
 	@Override
 	public void rebuildActionMode() {
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.NetworkState.NetworkStateListener#onlineStateChanged(boolean)
+	 * @see com.vuze.android.remote.NetworkState
+	 * .NetworkStateListener#onlineStateChanged(boolean)
 	 */
 	@Override
 	public void onlineStateChanged(boolean isOnline, boolean isOnlineMobile) {
