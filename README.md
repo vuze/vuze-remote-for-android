@@ -33,13 +33,13 @@ Vuze client at http://www.vuze.com
 
 ### Libraries
 &#xB7; <a href="https://github.com/alibaba/fastjson">Fast JSON Processor</a>, Apache License v2, &#169; 1999-2013 Alibaba Group Holding Ltd.
-\n
+
 &#xB7; <a href="https://github.com/jpardogo/PagerSlidingTabStrip">jpardogo / PagerSlidingTabStrip</a>, Apache License v2, &#169; 2013 Andreas Stuetz
-\n
+
 &#xB7; <a href="http://jcifs.samba.org/">jCIFS</a>, LGPL 2.1
-\n
+
 &#xB7; <a href="https://github.com/rengwuxian/MaterialEditText">rengwuxian / MaterialEditText</a>, Apache License v2, &#169; 2014 rengwuxian
-\n
+
 &#xB7; <a href="https://github.com/Nammari/RecyclerView-FastScroll">Nammari / RecyclerView-FastScrol</a>, Apache License v2, &#169; 2016 Tim Malseed
-\n
+
 &#xB7; <a href="https://google.github.io/material-design-icons/">Material Design Icons</a>, CC-BY 4.0
