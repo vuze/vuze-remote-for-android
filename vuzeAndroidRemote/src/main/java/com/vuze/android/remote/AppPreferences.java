@@ -120,6 +120,27 @@ public class AppPreferences
 		return null;
 	}
 
+	public boolean remoteExists(String profileID) {
+		try {
+			String config = preferences.getString(KEY_CONFIG, null);
+			if (config != null) {
+				Map<String, Object> mapConfig = JSONUtils.decodeJSON(config);
+
+				Map mapRemotes = MapUtils.getMapMap(mapConfig, KEY_REMOTES, null);
+				if (mapRemotes != null) {
+					return mapRemotes.containsKey(profileID);
+				}
+			}
+		} catch (Throwable t) {
+			if (AndroidUtils.DEBUG) {
+				t.printStackTrace();
+			}
+			VuzeEasyTracker.getInstance().logError(t);
+		}
+
+		return false;
+	}
+
 	public RemoteProfile getRemote(String profileID) {
 		try {
 			String config = preferences.getString(KEY_CONFIG, null);
@@ -219,9 +240,7 @@ public class AppPreferences
 
 			if (isNew) {
 				VuzeEasyTracker.getInstance().sendEvent("Profile", "Created",
-						rp.getRemoteType() == RemoteProfile.TYPE_LOOKUP ? "Vuze"
-								: rp.isLocalHost() ? "Local" : "Transmission",
-						null);
+						rp.getRemoteTypeName(), null);
 			}
 
 		} catch (Throwable t) {
@@ -304,9 +323,7 @@ public class AppPreferences
 				if (mapRemote instanceof Map) {
 					RemoteProfile rp = new RemoteProfile((Map) mapRemote);
 					VuzeEasyTracker.getInstance().sendEvent("Profile", "Removed",
-							rp.getRemoteType() == RemoteProfile.TYPE_LOOKUP ? "Vuze"
-									: "Transmission",
-							null);
+							rp.getRemoteTypeName(), null);
 				} else {
 					VuzeEasyTracker.getInstance().sendEvent("Profile", "Removed", null,
 							null);
@@ -407,8 +424,9 @@ public class AppPreferences
 	}
 
 	public boolean getNeverAskRatingAgain() {
-		return BuildConfig.FLAVOR.equals("fossFlavor") ? true
-				: preferences.getBoolean("neverAskRatingAgain", false);
+		return BuildConfig.FLAVOR.toLowerCase().contains(
+				BuildConfig.FLAVOR_gaD.toLowerCase())
+						? preferences.getBoolean("neverAskRatingAgain", false) : true;
 	}
 
 	public boolean shouldShowRatingReminder() {

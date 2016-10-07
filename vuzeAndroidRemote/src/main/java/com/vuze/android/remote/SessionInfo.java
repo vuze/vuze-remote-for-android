@@ -154,7 +154,7 @@ public class SessionInfo
 			public void run() {
 				String host = remoteProfile.getHost();
 				if (host != null && host.length() > 0
-						&& remoteProfile.getRemoteType() == RemoteProfile.TYPE_NORMAL) {
+						&& remoteProfile.getRemoteType() != RemoteProfile.TYPE_LOOKUP) {
 					open(activity, remoteProfile.getUser(), remoteProfile.getAC(),
 							remoteProfile.getProtocol(), host, remoteProfile.getPort());
 				} else {
@@ -208,9 +208,11 @@ public class SessionInfo
 		}
 	}
 
-	private boolean open(Activity activity, String user, final String ac,
+	private boolean open(final Activity activity, String user, final String ac,
 			String protocol, String host, int port) {
 		try {
+
+			boolean isLocalHost = "localhost".equals(host);
 
 			try {
 				InetAddress.getByName(host);
@@ -226,6 +228,13 @@ public class SessionInfo
 
 			if (AndroidUtils.DEBUG) {
 				Log.d(TAG, "rpc root = " + rpcRoot);
+			}
+
+			if (isLocalHost && port == 9092 && VuzeRemoteApp.isCoreAllowed()) {
+				// wait for Vuze Core to initialize
+				// We should be on non-main thread
+				// TODO check
+				VuzeRemoteApp.waitForCore(activity, 15000);
 			}
 
 			if (!AndroidUtils.isURLAlive(rpcUrl)) {
@@ -1135,7 +1144,7 @@ public class SessionInfo
 	}
 
 	@Override
-	public void onlineStateChanged(boolean isOnline) {
+	public void onlineStateChanged(boolean isOnline, boolean isOnlineMobile) {
 		if (!uiReady) {
 			return;
 		}
@@ -1159,6 +1168,16 @@ public class SessionInfo
 		activityVisible = true;
 		if (needsFullTorrentRefresh) {
 			triggerRefresh(false);
+		} else {
+			if (remoteProfile.getRemoteType() == RemoteProfile.TYPE_CORE) {
+				new Thread(new Runnable() {
+					@Override
+					public void run() {
+						VuzeRemoteApp.waitForCore(SessionInfo.this.currentActivity, 15000);
+						triggerRefresh(false);
+					}
+				}).start();
+			}
 		}
 	}
 
