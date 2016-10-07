@@ -4,6 +4,8 @@
 
 Release source for Vuze Remote for Android, primarily created for f-droid building.
 
+For FOSS compliant builds, use flavor CoreFlavorNogaFlavor
+
 Development repository at http://svn.vuze.com/public/android/remote/
 
 Forum at http://forum.vuze.com/Forum-Android-Remote-Client
@@ -15,7 +17,7 @@ Vuze client at http://www.vuze.com
 
 ### Main
 
-    Copyright (C) 2015 Azureus Software, Inc, All Rights Reserved.
+    Copyright (C) 2016 Azureus Software, Inc, All Rights Reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
@@ -31,13 +33,13 @@ Vuze client at http://www.vuze.com
 
 ### Libraries
 &#xB7; <a href="https://github.com/alibaba/fastjson">Fast JSON Processor</a>, Apache License v2, &#169; 1999-2013 Alibaba Group Holding Ltd.
-
-&#xB7; <a href="https://github.com/astuetz/PagerSlidingTabStrip">astuetz / PagerSlidingTabStrip</a>, Apache License v2, &#169; 2013 Andreas Stuetz
-
+\n
+&#xB7; <a href="https://github.com/jpardogo/PagerSlidingTabStrip">jpardogo / PagerSlidingTabStrip</a>, Apache License v2, &#169; 2013 Andreas Stuetz
+\n
 &#xB7; <a href="http://jcifs.samba.org/">jCIFS</a>, LGPL 2.1
-
+\n
 &#xB7; <a href="https://github.com/rengwuxian/MaterialEditText">rengwuxian / MaterialEditText</a>, Apache License v2, &#169; 2014 rengwuxian
-
+\n
 &#xB7; <a href="https://github.com/Nammari/RecyclerView-FastScroll">Nammari / RecyclerView-FastScrol</a>, Apache License v2, &#169; 2016 Tim Malseed
-
+\n
 &#xB7; <a href="https://google.github.io/material-design-icons/">Material Design Icons</a>, CC-BY 4.0
