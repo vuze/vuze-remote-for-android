@@ -28,7 +28,6 @@
 		<item>State</item>
 		<item>ETA</item>
 		<item># Files</item>
-		<item>Reverse Sort Order</item>
 	</string-array>
 
 	<string-array name="sortby_ms_list">
@@ -37,7 +36,6 @@
 		<item>Seeds</item>
 		<item>Size</item>
 		<item>Publish Date</item>
-		<item>Reverse Sort Order</item>
 	</string-array>
 
 	<string-array name="sortby_rcm_list">
@@ -47,7 +45,12 @@
 		<item>Size</item>
 		<item>Publish Date</item>
 		<item>Last Seen</item>
-		<item>Reverse Sort Order</item>
+	</string-array>
+
+	<string-array name="sortby_sl_list">
+		<item>Name</item>
+		<item>Last Checked</item>
+		<item># New</item>
 	</string-array>
 
 
@@ -108,9 +111,21 @@
 \n
 &#xB7; <a href="https://github.com/rengwuxian/MaterialEditText">rengwuxian / MaterialEditText</a>, Apache License v2, &#169; 2014 rengwuxian
 \n
-&#xB7; <a href="https://github.com/Nammari/RecyclerView-FastScroll">Nammari / RecyclerView-FastScrol</a>, Apache License v2, &#169; 2016 Tim Malseed
+&#xB7; <a href="https://github.com/Nammari/RecyclerView-FastScroll">Nammari / RecyclerView-FastScroll</a>, Apache License v2, &#169; 2016 Tim Malseed
 \n
 &#xB7; <a href="https://google.github.io/material-design-icons/">Material Design Icons</a>, CC-BY 4.0
+\n
+&#xB7; <a href="https://github.com/divStar/ico4a">divStar / ico4a</a>, GPLv3
+\n
+&#xB7; <a href="https://github.com/square/picasso">square / picasso</a>, Apache License v2, &#169; Square, Inc.
+\n
+&#xB7; <a href="https://github.com/square/okttp">square / okhttp</a>, Apache License v2, &#169; Square, Inc.
+\n
+&#xB7; <a href="https://mvnrepository.com/artifact/net.i2p.android/helper">I2P Android Helper Library</a>, Apache License v2
+\n
+&#xB7; <a href="http://www.dnsjava.org/">dnsjava</a>, BSD license
+\n
+&#xB7; <a href="https://github.com/google/flexbox-layout">FlexboxLayout</a>, Apache License v2
 </string>
 	<string name="about_thanks_header">Portions of this app thanks to:</string>
 	<string name="about_copyright">© 2013–2016 Azureus Software, Inc.</string>
@@ -207,6 +222,7 @@ If you like our app, please rate us on the <a href="market://details?id=com.vuze
 	<string name="edit_profile">Edit Profile</string>
 	<string name="toast_adding_xxx">Adding %1$s</string>
 	<string name="toast_added">\'%1$s\' has been added</string>
+	<string name="toast_already_added">\'%1$s\' has already been added</string>
 	<string name="not_torrent_file">
 <![CDATA[
 <b>%1$s</b> is not a valid torrent file.  The first five bytes are <b>%2$s</b>
@@ -274,7 +290,7 @@ lawful and non-infringing content.</string>
 	<string name="accept">Accept</string>
 	<string name="decline">Decline</string>
 	<string name="drawer_rcm">Swarm Discoveries</string>
-	<string name="rcm_na">Swarm Discoveries view requires a recent version of Vuze.\n\nThe next time you are near your remote machine, select |Help| > |Check For Updates| in Vuze to update to the latest build.</string>
+	<string name="rcm_na">%1$s view requires a recent version of Vuze.\n\nThe next time you are near your remote machine, select |Help| > |Check For Updates| in Vuze to update to the latest build.</string>
 	<string name="change_name_title">Change Torrent Name</string>
 	<string name="change_name_message">Changing this display name will not alter the save location of the torrent data</string>
 	<string name="torrent_url_add_failed">
@@ -351,6 +367,10 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 		<item quantity="one">&lt;b>%1$s&lt;/b> result for &lt;b>%2$s&lt;/b></item>
 		<item quantity="other">&lt;b>%1$s&lt;/b> results for &lt;b>%2$s&lt;/b></item>
 	</plurals>
+	<plurals name="ms_filtered_results_header">
+		<item quantity="one">&lt;b>%1$s&lt;/b> of &lt;b>%2$s&lt;/b> results for &lt;b>%3$s&lt;/b></item>
+		<item quantity="other">&lt;b>%1$s&lt;/b> of &lt;b>%2$s&lt;/b> results for &lt;b>%3$s&lt;/b></item>
+	</plurals>
 	<string name="ms_results_info">%1$s seeds • %2$s peers</string>
 	<string name="ms_engines">Engines</string>
 	<string name="search_filter">Filters</string>
@@ -369,12 +389,12 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 		<item quantity="other">At Least %1$d Seeds</item>
 	</plurals>
 	<plurals name="rcm_results_count">
-		<item quantity="one">%1$s swarm discovery</item>
-		<item quantity="other">%1$s swarm discoveries</item>
+		<item quantity="one">%1$s Swarm Discovery</item>
+		<item quantity="other">%1$s Swarm Discoveries</item>
 	</plurals>
 	<plurals name="rcm_filtered_results_count">
-		<item quantity="one">%1$s of %2$s swarm discoveries</item>
-		<item quantity="other">%1$s of %2$s swarm discoveries</item>
+		<item quantity="one">%1$s of %2$s Swarm Discoveries</item>
+		<item quantity="other">%1$s of %2$s Swarm Discoveries</item>
 	</plurals>
 
 
@@ -398,7 +418,7 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 	<string name="title_message_from_client">Message From Remote Client</string>
 	<string name="list_filtered_empty">No results match your current filters.</string>
 	<string name="empty_list">List is empty :(</string>
-	<string name="torrent_list_empty">No torrents to display. You can search for torrents with our MetaSearch, discover torrents with Swarm Discoveries, or manually add torrents.</string>
+	<string name="torrent_list_empty">No torrents to display.\n\nYou can search for torrents with Metasearch, discover torrents with Swarm Discoveries, subscribe to existing RSS torrent feeds, or manually add torrents.</string>
 	<string name="rcm_list_empty">No Swarm Discoveries.  The more torrents you download, the more discoveries will be found.</string>
 
 	<string name="spoken_sorted_ascending">Sorted Ascending</string>
@@ -412,6 +432,28 @@ Could not open <b>%1$s</b>.  Since you are on Kitkat (Android v4), it\'s most li
 	<string name="button_set">Set</string>
 	<string name="start_local_core">Start Torrenting</string>
 	<string name="button_clear_filters">Clear Filters</string>
+	<string name="mark_all_seen">Mark All Seen</string>
+	<string name="textbubble_new">New</string>
+	<string name="only_unseen">Only Unseen</string>
+	<string name="search_templates">Search Templates</string>
+	<string name="last_seen_x">Last Seen %1$s</string>
+	<string name="published_x_ago">Published %1$s</string>
+	<string name="x_seeds">%1$s seeds</string>
+	<string name="x_peers">%1$s peers</string>
+	<string name="retrieving_items">Retrieving List</string>
+	<string name="checking_rcm">Checking state of Swarm Discoveries</string>
+	<string name="first_load_error">Failed Retrieving List:\n%1$s</string>
+	<string name="mark_seen">Mark Seen</string>
+	<string name="mark_unseen">Mark as Unseen</string>
+	<string name="action_download">Download</string>
+	<string name="rpcexception.HTMLnotJSON">Could not retrieve remote client location information.  The most common cause is being on a guest wifi that requires login before using the internet.</string>
+	<string name="profile_only_i2p">Only connect using I2P</string>
+	<string name="auto_download">Auto-Download</string>
+	<string name="import_settings">Import Settings</string>
+	<string name="export_settings">Export Settings</string>
+	<string name="open_file">Open file</string>
+	<string name="adding_torrent_error">Error while adding torrent &lt;b>%1$s&lt;/b>:\n\n
+%2$s</string>
 
 	<plurals name="seconds">
 		<item quantity="one">a second</item>

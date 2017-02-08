@@ -21,22 +21,24 @@ import java.util.Map;
 
 import com.astuetz.PagerSlidingTabStrip;
 import com.vuze.android.remote.*;
-import com.vuze.android.remote.NetworkState.NetworkStateListener;
 import com.vuze.android.remote.adapter.TorrentDetailsPagerAdapter;
 import com.vuze.android.remote.adapter.TorrentListRowFiller;
 import com.vuze.android.remote.fragment.*;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
+import com.vuze.android.remote.session.RemoteProfile;
+import com.vuze.android.util.NetworkState.NetworkStateListener;
+import com.vuze.android.widget.DisableableAppBarLayoutBehavior;
 import com.vuze.util.MapUtils;
+import com.vuze.util.Thunk;
 
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.design.widget.AppBarLayout;
-import android.support.design.widget.CollapsingToolbarLayout;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.v4.app.Fragment;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBar;
-import android.support.v7.app.AppCompatActivity;
 import android.support.v7.view.ActionMode;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -45,33 +47,30 @@ import android.view.*;
 /**
  */
 public class TorrentDetailsCoordActivity
-	extends AppCompatActivity
-	implements TorrentListReceivedListener, SessionInfoGetter,
+	extends SessionActivity
+	implements TorrentListReceivedListener, SessionGetter,
 	ActionModeBeingReplacedListener, NetworkStateListener, View.OnKeyListener
 {
-	static final String TAG = "TorrentDetailsCoord";
+	private static final String TAG = "TorrentDetailsCoord";
 
-	/* @Thunk */ long torrentID;
+	@Thunk
+	long torrentID;
 
-	/* @Thunk */ SessionInfo sessionInfo;
-
-	/* @Thunk */ TorrentListRowFiller torrentListRowFiller;
+	@Thunk
+	TorrentListRowFiller torrentListRowFiller;
 
 	private boolean hasActionMode;
-
-	private ViewPager viewPager;
 
 	private TorrentDetailsPagerAdapter pagerAdapter;
 
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		AndroidUtilsUI.onCreate(this);
-		super.onCreate(savedInstanceState);
+	protected String getTag() {
+		return TAG;
+	}
 
+	@Override
+	protected void onCreateWithSession(Bundle savedInstanceState) {
 		Intent intent = getIntent();
-		if (AndroidUtils.DEBUG) {
-			Log.d(TAG, "TorrentDetailsActivity intent = " + intent);
-		}
 
 		final Bundle extras = intent.getExtras();
 		if (extras == null) {
@@ -81,27 +80,16 @@ public class TorrentDetailsCoordActivity
 		}
 
 		torrentID = extras.getLong("TorrentID");
-		String remoteProfileID = extras.getString(SessionInfoManager.BUNDLE_KEY);
-		sessionInfo = SessionInfoManager.getSessionInfo(remoteProfileID, this);
-
-		if (sessionInfo == null) {
-			Log.e(TAG, "No sessionInfo!");
-			finish();
-			return;
-		}
 
 		setContentView(R.layout.activity_torrent_detail_coord);
 
 		setupActionBar();
 
-		CollapsingToolbarLayout collapsingToolbarLayout = (CollapsingToolbarLayout) findViewById(
-				R.id.collapsing_toolbar);
 		final AppBarLayout appbar = (AppBarLayout) findViewById(R.id.appbar);
-		if (AndroidUtilsUI.getScreenHeightDp(this) > 1000) {
-			// Disable scroll-to-hide for long views
-			((AppBarLayout.LayoutParams) collapsingToolbarLayout.getLayoutParams()).setScrollFlags(
-					0);
-		} else {
+		CoordinatorLayout.LayoutParams layoutParams = (CoordinatorLayout.LayoutParams) appbar.getLayoutParams();
+		((DisableableAppBarLayoutBehavior) layoutParams.getBehavior()).setEnabled(
+				AndroidUtilsUI.getScreenHeightDp(this) < 1000);
+		if (AndroidUtilsUI.getScreenHeightDp(this) < 1000) {
 			appbar.addOnOffsetChangedListener(
 					new AppBarLayout.OnOffsetChangedListener() {
 						boolean isInFullView = true;
@@ -116,13 +104,13 @@ public class TorrentDetailsCoordActivity
 								if (actionBar == null) {
 									return;
 								}
+
 								if (isInFullView) {
-									RemoteProfile remoteProfile = sessionInfo.getRemoteProfile();
-									if (remoteProfile != null) {
-										actionBar.setSubtitle(remoteProfile.getNick());
-									}
+									RemoteProfile remoteProfile = session.getRemoteProfile();
+									actionBar.setSubtitle(remoteProfile.getNick());
 								} else {
-									Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
+									Map<?, ?> torrent = session.torrent.getCachedTorrent(
+											torrentID);
 									actionBar.setSubtitle(
 											MapUtils.getMapString(torrent, "name", ""));
 
@@ -133,27 +121,27 @@ public class TorrentDetailsCoordActivity
 		}
 
 		final View viewTorrentRow = findViewById(R.id.activity_torrent_detail_row);
-		torrentListRowFiller = new TorrentListRowFiller(this, viewTorrentRow);
+		torrentListRowFiller = new TorrentListRowFiller(viewTorrentRow.getContext(),
+				viewTorrentRow);
 
 		viewTorrentRow.setNextFocusDownId(R.id.pager_title_strip);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
 			viewTorrentRow.setNextFocusForwardId(R.id.pager_title_strip);
 		}
 
-		viewTorrentRow.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				Toolbar tb = (Toolbar) findViewById(R.id.toolbar_bottom);
-				if (tb == null) {
+		if (getSupportActionBar() == null) {
+			viewTorrentRow.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
 					AndroidUtilsUI.popupContextMenu(TorrentDetailsCoordActivity.this,
 							null);
 				}
-			}
-		});
+			});
+		}
 
 //		setHasOptionsMenu(true);
 
-		viewPager = (ViewPager) findViewById(R.id.pager);
+		ViewPager viewPager = (ViewPager) findViewById(R.id.pager);
 		PagerSlidingTabStrip tabs = (PagerSlidingTabStrip) findViewById(
 				R.id.pager_title_strip);
 
@@ -162,9 +150,9 @@ public class TorrentDetailsCoordActivity
 
 		// adapter will bind pager, tabs and adapter together
 		pagerAdapter = new TorrentDetailsPagerAdapter(getSupportFragmentManager(),
-				viewPager, tabs);
+				viewPager, tabs, remoteProfileID);
 
-		setTorrentIDs(sessionInfo.getRemoteProfile().getID(), new long[] {
+		setTorrentIDs(new long[] {
 			torrentID
 		});
 
@@ -174,10 +162,7 @@ public class TorrentDetailsCoordActivity
 	protected void onPause() {
 		VuzeRemoteApp.getNetworkState().removeListener(this);
 		super.onPause();
-		if (sessionInfo != null) {
-			sessionInfo.activityPaused();
-			sessionInfo.removeTorrentListReceivedListener(this);
-		}
+		session.torrent.removeListReceivedListener(this);
 		pagerAdapter.onPause();
 	}
 
@@ -185,10 +170,7 @@ public class TorrentDetailsCoordActivity
 	protected void onResume() {
 		VuzeRemoteApp.getNetworkState().addListener(this);
 		super.onResume();
-		if (sessionInfo != null) {
-			sessionInfo.activityResumed(this);
-			sessionInfo.addTorrentListReceivedListener(TAG, this);
-		}
+		session.torrent.addListReceivedListener(TAG, this);
 		pagerAdapter.onResume();
 	}
 
@@ -233,10 +215,11 @@ public class TorrentDetailsCoordActivity
 						return;
 					}
 				}
-				Map<?, ?> mapTorrent = sessionInfo.getTorrent(torrentID);
-				torrentListRowFiller.fillHolder(mapTorrent, sessionInfo);
+				Map<?, ?> mapTorrent = session.torrent.getCachedTorrent(torrentID);
+				torrentListRowFiller.fillHolder(mapTorrent, session);
 
-				AndroidUtils.invalidateOptionsMenuHC(TorrentDetailsCoordActivity.this);
+				AndroidUtilsUI.invalidateOptionsMenuHC(
+						TorrentDetailsCoordActivity.this);
 			}
 		});
 	}
@@ -261,10 +244,8 @@ public class TorrentDetailsCoordActivity
 //			return;
 //		}
 
-		RemoteProfile remoteProfile = sessionInfo.getRemoteProfile();
-		if (remoteProfile != null) {
-			actionBar.setSubtitle(remoteProfile.getNick());
-		}
+		RemoteProfile remoteProfile = session.getRemoteProfile();
+		actionBar.setSubtitle(remoteProfile.getNick());
 
 		// enable ActionBar app icon to behave as action to toggle nav drawer
 		actionBar.setDisplayHomeAsUpEnabled(true);
@@ -276,9 +257,10 @@ public class TorrentDetailsCoordActivity
 				finish();
 				return true;
 		}
-		if (TorrentListFragment.handleTorrentMenuActions(sessionInfo, new long[] {
-			torrentID
-		}, getSupportFragmentManager(), item.getItemId())) {
+		if (TorrentListFragment.handleTorrentMenuActions(remoteProfileID,
+				new long[] {
+					torrentID
+				}, getSupportFragmentManager(), item.getItemId())) {
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -304,9 +286,7 @@ public class TorrentDetailsCoordActivity
 
 		super.onCreateOptionsMenu(menu);
 
-		Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar_bottom);
-		ActionBarToolbarSplitter.buildActionBar(this, null,
-				R.menu.menu_context_torrent_details, menu, toolbar);
+		getMenuInflater().inflate(R.menu.menu_context_torrent_details, menu);
 
 		return true;
 	}
@@ -317,10 +297,10 @@ public class TorrentDetailsCoordActivity
 			Log.d(TAG, "onPrepareOptionsMenu");
 		}
 
-		if (sessionInfo == null || torrentID < 0) {
+		if (torrentID < 0) {
 			return super.onPrepareOptionsMenu(menu);
 		}
-		Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
+		Map<?, ?> torrent = session.torrent.getCachedTorrent(torrentID);
 		int status = MapUtils.getMapInt(torrent,
 				TransmissionVars.FIELD_TORRENT_STATUS,
 				TransmissionVars.TR_STATUS_STOPPED);
@@ -338,15 +318,7 @@ public class TorrentDetailsCoordActivity
 
 		AndroidUtils.fixupMenuAlpha(menu);
 
-		ActionBarToolbarSplitter.prepareToolbar(menu,
-				(Toolbar) findViewById(R.id.toolbar_bottom));
-
 		return super.onPrepareOptionsMenu(menu);
-	}
-
-	@Override
-	public SessionInfo getSessionInfo() {
-		return sessionInfo;
 	}
 
 	/* (non-Javadoc)
@@ -408,7 +380,7 @@ public class TorrentDetailsCoordActivity
 	}
 
 	/* (non-Javadoc)
-	 * @see com.vuze.android.remote.NetworkState
+	 * @see com.vuze.android.util.NetworkState
 	 * .NetworkStateListener#onlineStateChanged(boolean)
 	 */
 	@Override
@@ -451,7 +423,7 @@ public class TorrentDetailsCoordActivity
 		return super.onKeyDown(keyCode, event);
 	}
 
-	public void setTorrentIDs(String remoteProfileID, long[] newIDs) {
+	private void setTorrentIDs(long[] newIDs) {
 		this.torrentID = newIDs != null && newIDs.length == 1 ? newIDs[0] : -1;
 		pagerAdapter.setSelection(torrentID);
 		runOnUiThread(new Runnable() {

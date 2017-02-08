@@ -17,6 +17,16 @@
 
 package com.vuze.android.remote.dialog;
 
+import com.vuze.android.remote.AndroidUtils;
+import com.vuze.android.remote.AndroidUtilsUI;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
+import com.vuze.android.remote.R;
+import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
+import com.vuze.android.remote.activity.TorrentViewActivity;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.Thunk;
+
 import android.app.Activity;
 import android.app.AlertDialog.Builder;
 import android.app.Dialog;
@@ -26,15 +36,10 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
-
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.AndroidUtils.AlertDialogBuilder;
-import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
-import com.vuze.android.remote.activity.TorrentViewActivity;
 
 /**
  * This is the dialog box that asks the user for a URL/File/Hash.
@@ -46,17 +51,18 @@ public class DialogFragmentOpenTorrent
 	extends DialogFragmentBase
 {
 
-	private static final String TAG = "OpenTorrent";
+	private static final String TAG = "OpenTorrentDialog";
 
-	/* @Thunk */ EditText mTextTorrent;
+	@Thunk
+	EditText mTextTorrent;
 
 	public static void openOpenTorrentDialog(FragmentManager fm,
 			String profileID) {
 		DialogFragmentOpenTorrent dlg = new DialogFragmentOpenTorrent();
 		Bundle bundle = new Bundle();
-		bundle.putString(SessionInfoManager.BUNDLE_KEY, profileID);
+		bundle.putString(SessionManager.BUNDLE_KEY, profileID);
 		dlg.setArguments(bundle);
-		AndroidUtilsUI.showDialog(dlg, fm, "OpenTorrentDialog");
+		AndroidUtilsUI.showDialog(dlg, fm, TAG);
 	}
 
 	@NonNull
@@ -75,13 +81,13 @@ public class DialogFragmentOpenTorrent
 		builder.setPositiveButton(android.R.string.ok, new OnClickListener() {
 			@Override
 			public void onClick(DialogInterface dialog, int id) {
-				SessionInfo sessionInfo = SessionInfoManager.findSessionInfo(
-						DialogFragmentOpenTorrent.this);
-				if (sessionInfo == null) {
+				Session session = SessionManager.findOrCreateSession(
+						DialogFragmentOpenTorrent.this, null);
+				if (session == null) {
 					return;
 				}
-				sessionInfo.openTorrent(getActivity(),
-						mTextTorrent.getText().toString(), (String) null);
+				session.torrent.openTorrent(getActivity(),
+						mTextTorrent.getText().toString(), null);
 			}
 		});
 		builder.setNegativeButton(android.R.string.cancel, new OnClickListener() {
@@ -105,7 +111,7 @@ public class DialogFragmentOpenTorrent
 		// This won't actually get called if this class is launched via DailogFragment.show()
 		// It will be passed to parent (invoker's) activity
 		if (AndroidUtils.DEBUG) {
-			System.out.println("ActivityResult " + requestCode + "/" + resultCode);
+			Log.e(TAG, "ActivityResult " + requestCode + "/" + resultCode);
 		}
 		if (requestCode == TorrentViewActivity.FILECHOOSER_RESULTCODE) {
 			Uri result = intent == null || resultCode != Activity.RESULT_OK ? null
@@ -113,11 +119,11 @@ public class DialogFragmentOpenTorrent
 			if (result == null) {
 				return;
 			}
-			SessionInfo sessionInfo = SessionInfoManager.findSessionInfo(this);
-			if (sessionInfo == null) {
+			Session session = SessionManager.findOrCreateSession(this, null);
+			if (session == null) {
 				return;
 			}
-			sessionInfo.openTorrent(getActivity(), result);
+			session.torrent.openTorrent(getActivity(), result);
 		}
 	}
 

@@ -19,22 +19,26 @@ package com.vuze.android.remote.adapter;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.vuze.android.FlexibleRecyclerAdapter;
+import com.vuze.android.FlexibleRecyclerSelectionListener;
+import com.vuze.android.FlexibleRecyclerViewHolder;
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
+
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.support.annotation.MenuRes;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v7.view.menu.MenuBuilder;
+import android.support.v7.view.menu.MenuItemImpl;
 import android.support.v7.widget.RecyclerView;
 import android.view.*;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import com.vuze.android.FlexibleRecyclerAdapter;
-import com.vuze.android.FlexibleRecyclerSelectionListener;
-import com.vuze.android.FlexibleRecyclerViewHolder;
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.activity.TorrentViewActivity;
 
 /**
  * Created by TuxPaper on 2/13/16.
@@ -45,22 +49,13 @@ public class SideActionsAdapter
 {
 	private static final String TAG = "SideActionsAdapter";
 
-	private static final int menu_ids[] = new int[] {
-		R.id.action_refresh,
-		R.id.action_add_torrent,
-		R.id.action_swarm_discoveries,
-		R.id.action_search,
-		R.id.action_start_all,
-		R.id.action_stop_all,
-		R.id.action_settings,
-		R.id.action_social,
-		R.id.action_logout,
-		R.id.action_shutdown
-	};
+	private int[] restrictToMenuIDs = null;
+
+	private final SideActionSelectionListener selector;
 
 	private final Context context;
 
-	private final SessionInfo sessionInfo;
+	private final String remoteProfileID;
 
 	private final MenuBuilder menuBuilder;
 
@@ -102,30 +97,53 @@ public class SideActionsAdapter
 		}
 	}
 
-	public SideActionsAdapter(Context context, SessionInfo sessionInfo,
-			FlexibleRecyclerSelectionListener selector) {
+	public interface SideActionSelectionListener
+		extends
+		FlexibleRecyclerSelectionListener<SideActionsAdapter, SideActionsAdapter.SideActionsInfo>
+	{
+		boolean isRefreshing();
+	}
+
+	public SideActionsAdapter(Context context, String remoteProfileID,
+			@MenuRes int menuRes, @Nullable int[] restrictToMenuIDs,
+		SideActionSelectionListener selector) {
 		super(selector);
 		this.context = context;
-		this.sessionInfo = sessionInfo;
+		this.remoteProfileID = remoteProfileID;
+		this.restrictToMenuIDs = restrictToMenuIDs;
+		this.selector = selector;
 		setHasStableIds(true);
 
 		menuBuilder = new MenuBuilder(context);
-		new MenuInflater(context).inflate(R.menu.menu_torrent_list, menuBuilder);
+		new MenuInflater(context).inflate(menuRes, menuBuilder);
 
 		updateMenuItems();
 	}
 
+	public void prepareActionMenus(Menu menu) {
+	}
+
 	public void updateMenuItems() {
 
-		TorrentViewActivity.prepareGlobalMenu(menuBuilder, sessionInfo);
+		prepareActionMenus(menuBuilder);
 
 		List<SideActionsInfo> list = new ArrayList<>();
-		for (int id : menu_ids) {
-			MenuItem item = menuBuilder.findItem(id);
-			if (item != null && item.isVisible()) {
+		if (restrictToMenuIDs == null) {
+			ArrayList<MenuItemImpl> actionItems = menuBuilder.getVisibleItems();
+			for (MenuItem item : actionItems) {
 				list.add(new SideActionsInfo(item));
-				if (id == R.id.action_refresh) {
-					item.setEnabled(!sessionInfo.isRefreshingTorrentList());
+				if (item.getItemId() == R.id.action_refresh) {
+					item.setEnabled(!selector.isRefreshing());
+				}
+			}
+		} else {
+			for (int id : restrictToMenuIDs) {
+				MenuItem item = menuBuilder.findItem(id);
+				if (item != null && item.isVisible()) {
+					list.add(new SideActionsInfo(item));
+					if (id == R.id.action_refresh) {
+						item.setEnabled(!selector.isRefreshing());
+					}
 				}
 			}
 		}
@@ -134,17 +152,20 @@ public class SideActionsAdapter
 	}
 
 	public void updateRefreshButton() {
+		MenuItem menuItem = menuBuilder.findItem(R.id.action_refresh);
+		boolean enable = !selector.isRefreshing();
+		if (enable == menuItem.isEnabled()) {
+			return;
+		}
+
+		menuItem.setEnabled(enable);
+
 		RecyclerView.ViewHolder vh = getRecyclerView().findViewHolderForItemId(
 				R.id.action_refresh);
 		if (vh != null) {
-
 			int position = vh.getLayoutPosition();
 			if (position >= 0) {
-				SideActionsInfo item = getItem(position);
-				if (item != null) {
-					item.menuItem.setEnabled(!sessionInfo.isRefreshingTorrentList());
-					notifyItemChanged(position);
-				}
+				notifyItemChanged(position);
 			}
 		}
 	}
@@ -174,7 +195,7 @@ public class SideActionsAdapter
 		holder.iv.setImageDrawable(icon);
 
 		if (item.menuItem.getItemId() == R.id.action_refresh) {
-			if (sessionInfo.isRefreshingTorrentList()) {
+			if (selector.isRefreshing()) {
 				if (holder.rotateAnimation == null) {
 					holder.rotateAnimation = new RotateAnimation(0, 360,
 							RotateAnimation.RELATIVE_TO_SELF, 0.5f,
@@ -198,5 +219,10 @@ public class SideActionsAdapter
 	public long getItemId(int position) {
 		SideActionsInfo item = getItem(position);
 		return item.menuItem.getItemId();
+	}
+
+	public void setRestrictToMenuIDs(int[] restrictToMenuIDs) {
+		this.restrictToMenuIDs = restrictToMenuIDs;
+		updateMenuItems();
 	}
 }

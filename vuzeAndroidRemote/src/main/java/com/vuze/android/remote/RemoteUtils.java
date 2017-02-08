@@ -16,6 +16,17 @@
 
 package com.vuze.android.remote;
 
+import java.util.Map;
+
+import com.vuze.android.remote.activity.IntentHandler;
+import com.vuze.android.remote.activity.TorrentViewActivity;
+import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile;
+import com.vuze.android.remote.dialog.DialogFragmentVuzeCoreProfile;
+import com.vuze.android.remote.dialog.DialogFragmentVuzeRemoteProfile;
+import com.vuze.android.remote.session.RemoteProfile;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.JSONUtils;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -24,17 +35,10 @@ import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
 
-import com.vuze.android.remote.activity.IntentHandler;
-import com.vuze.android.remote.activity.TorrentViewActivity;
-import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile;
-import com.vuze.android.remote.dialog.DialogFragmentVuzeCoreProfile;
-import com.vuze.android.remote.dialog.DialogFragmentVuzeRemoteProfile;
-import com.vuze.util.JSONUtils;
-
-import java.util.Map;
-
 public class RemoteUtils
 {
+	public static final String KEY_REMOTE_JSON = "remote.json";
+
 	//private static final String TAG = "RemoteUtils";
 	public static String lastOpenDebug = null;
 
@@ -63,7 +67,7 @@ public class RemoteUtils
 		}
 		myIntent.setClass(activity, TorrentViewActivity.class);
 
-		myIntent.putExtra(SessionInfoManager.BUNDLE_KEY, remoteProfile.getID());
+		myIntent.putExtra(SessionManager.BUNDLE_KEY, remoteProfile.getID());
 
 		lastOpenDebug = AndroidUtils.getCompressedStackTrace();
 
@@ -75,7 +79,8 @@ public class RemoteUtils
 		Intent myIntent = new Intent();
 		myIntent.setAction(Intent.ACTION_VIEW);
 		myIntent.setFlags(
-				Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+				Intent.FLAG_ACTIVITY_NO_ANIMATION | Intent.FLAG_ACTIVITY_CLEAR_TOP
+						| Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
 		myIntent.setClass(context, IntentHandler.class);
 		context.startActivity(myIntent);
 	}
@@ -99,14 +104,15 @@ public class RemoteUtils
 		Bundle args = new Bundle();
 		Map<?, ?> profileAsMap = remoteProfile.getAsMap(false);
 		String profileAsJSON = JSONUtils.encodeToJSON(profileAsMap);
-		args.putSerializable("remote.json", profileAsJSON);
+		args.putSerializable(KEY_REMOTE_JSON, profileAsJSON);
 		dlg.setArguments(args);
 		AndroidUtilsUI.showDialog(dlg, fm, "GenericRemoteProfile");
 	}
 
 	public interface OnCoreProfileCreated
 	{
-		void onCoreProfileCreated(RemoteProfile coreProfile);
+		void onCoreProfileCreated(RemoteProfile coreProfile,
+				boolean alreadyCreated);
 	}
 
 	public static void createCoreProfile(final Activity activity,
@@ -116,6 +122,14 @@ public class RemoteUtils
 		}, new Runnable() {
 			@Override
 			public void run() {
+				RemoteProfile coreProfile = RemoteUtils.getCoreProfile();
+				if (coreProfile != null) {
+					if (l != null) {
+						l.onCoreProfileCreated(coreProfile, true);
+					}
+					return;
+				}
+
 				RemoteProfile localProfile = new RemoteProfile(RemoteProfile.TYPE_CORE);
 				localProfile.setHost("localhost");
 				localProfile.setPort(9092);
@@ -124,7 +138,7 @@ public class RemoteUtils
 				localProfile.setUpdateInterval(2);
 
 				if (l != null) {
-					l.onCoreProfileCreated(localProfile);
+					l.onCoreProfileCreated(localProfile, false);
 				}
 			}
 		}, new Runnable() {
@@ -135,5 +149,18 @@ public class RemoteUtils
 								+ "permissions.");
 			}
 		});
+	}
+
+	public static RemoteProfile getCoreProfile() {
+		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
+		RemoteProfile[] remotes = appPreferences.getRemotes();
+		RemoteProfile coreProfile = null;
+		for (RemoteProfile remoteProfile : remotes) {
+			if (remoteProfile.getRemoteType() == RemoteProfile.TYPE_CORE) {
+				coreProfile = remoteProfile;
+				break;
+			}
+		}
+		return coreProfile;
 	}
 }

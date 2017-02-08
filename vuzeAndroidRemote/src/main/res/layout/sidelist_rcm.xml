@@ -50,6 +50,7 @@
 		style="@style/sidelist_body"
 		android:fadingEdge="vertical"
 		android:fadingEdgeLength="10dp"
+		android:nextFocusDown="@id/sidefilter_header"
 		android:scrollbars="vertical"
 		app:fastScrollEnabled="false"/>
 
@@ -98,14 +99,13 @@
 				android:onClick="fileSizeRow_clicked"
 				android:orientation="vertical"
 				android:paddingBottom="8dp"
-				android:paddingLeft="@dimen/sidelist_body_padding_x"
+				android:paddingLeft="@dimen/sidelist_body_textpadding_x"
 				android:paddingTop="8dp"
 				tools:visibility="visible">
 
 				<TextView
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:paddingLeft="16dp"
 					android:text="@string/filterby_header_filesize"
 					android:textAppearance="?android:attr/textAppearanceMedium"
 					android:textColor="@drawable/list_sidebar_content_fg"
@@ -132,13 +132,12 @@
 				android:onClick="ageRow_clicked"
 				android:orientation="vertical"
 				android:paddingBottom="8dp"
-				android:paddingLeft="@dimen/sidelist_body_padding_x"
+				android:paddingLeft="@dimen/sidelist_body_textpadding_x"
 				android:paddingTop="8dp">
 
 				<TextView
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:paddingLeft="16dp"
 					android:text="@string/filterby_header_age"
 					android:textAppearance="?android:attr/textAppearanceMedium"
 					android:textColor="@drawable/list_sidebar_content_fg"
@@ -166,13 +165,12 @@
 				android:orientation="vertical"
 				android:paddingBottom="8dp"
 
-				android:paddingLeft="@dimen/sidelist_body_padding_x"
+				android:paddingLeft="@dimen/sidelist_body_textpadding_x"
 				android:paddingTop="8dp">
 
 				<TextView
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:paddingLeft="16dp"
 					android:text="@string/filterby_header_lastseen"
 					android:textAppearance="?android:attr/textAppearanceMedium"
 					android:textColor="@drawable/list_sidebar_content_fg"
@@ -199,13 +197,12 @@
 				android:orientation="vertical"
 				android:paddingBottom="8dp"
 
-				android:paddingLeft="@dimen/sidelist_body_padding_x"
+				android:paddingLeft="@dimen/sidelist_body_textpadding_x"
 				android:paddingTop="8dp">
 
 				<TextView
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:paddingLeft="16dp"
 					android:text="@string/filterby_header_minimum_rank"
 					android:textAppearance="?android:attr/textAppearanceMedium"
 					android:textColor="@drawable/list_sidebar_content_fg"
@@ -233,13 +230,12 @@
 				android:orientation="vertical"
 				android:paddingBottom="8dp"
 
-				android:paddingLeft="@dimen/sidelist_body_padding_x"
+				android:paddingLeft="@dimen/sidelist_body_textpadding_x"
 				android:paddingTop="8dp">
 
 				<TextView
 					android:layout_width="match_parent"
 					android:layout_height="wrap_content"
-					android:paddingLeft="16dp"
 					android:text="@string/filterby_header_minimum_seeds"
 					android:textAppearance="?android:attr/textAppearanceMedium"
 					android:textColor="@drawable/list_sidebar_content_fg"
@@ -303,7 +299,8 @@
 		android:layout_marginRight="@dimen/sidelist_filter_padding_x2"
 		android:gravity="bottom"
 		android:hint="@string/hint_filter"
-		android:singleLine="true"
+		android:inputType="text"
+		android:maxLines="1"
 		android:textAppearance="?android:attr/textAppearanceSmall"
 		android:textColor="@color/list_sidebar_content_fg"
 		android:theme="@style/AppThemeDark"
@@ -324,5 +321,6 @@
 		android:tint="?sidelist_shadow"
 		app:srcCompat="@drawable/vuze_frog_round_white"
 		tools:ignore="ContentDescription"
-		tools:src="@drawable/vuze_frog_round_white"/>
+		tools:src="@drawable/vuze_frog_round_white"
+		tools:visibility="gone"/>
 </LinearLayout>

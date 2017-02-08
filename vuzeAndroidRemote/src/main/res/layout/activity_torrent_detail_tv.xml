@@ -22,13 +22,14 @@
 	android:layout_height="fill_parent"
 	android:orientation="vertical"
 	android:paddingTop="27dp"
-	tools:context=".activity.TorrentDetailsActivity">
+	tools:context=".activity.TorrentDetailsActivityTV">
 
 	<include
 		android:id="@+id/activity_torrent_detail_row"
 		layout="@layout/row_torrent_list"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
+		android:transitionName="TVtoTD"
 		android:focusable="true"/>
 
 	<fragment

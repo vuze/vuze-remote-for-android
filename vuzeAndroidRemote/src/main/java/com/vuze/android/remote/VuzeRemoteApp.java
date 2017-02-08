@@ -18,12 +18,17 @@ package com.vuze.android.remote;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.*;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
-import android.app.Activity;
+import com.squareup.picasso.*;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.android.util.NetworkState;
+import com.vuze.util.Thunk;
+
+import android.app.Application;
 import android.app.UiModeManager;
 import android.content.Context;
 import android.content.pm.FeatureInfo;
@@ -35,49 +40,63 @@ import android.support.multidex.MultiDexApplication;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.ViewConfiguration;
-import android.widget.Toast;
-
-import com.squareup.picasso.*;
 
 import divstar.ico4a.codec.ico.ICODecoder;
 import divstar.ico4a.codec.ico.ICOImage;
 
 /**
  * TODO: Start/Stop all: If list filtered, ask to stop/start list or all
- * TODO: Switch to okhttp or similar, since Apache HttpClient is deprecated
+ * TODO: For Local Core, use native directory browser for save/move
  */
 public class VuzeRemoteApp
 	extends MultiDexApplication
 {
+	@Thunk
 	static final String TAG = "App";
 
-	private static AppPreferences appPreferences;
+	private static AppPreferences appPreferences = null;
 
-	private static NetworkState networkState;
+	private static NetworkState networkState = null;
 
-	/* @Thunk */ static Context applicationContext;
+	@Thunk
+	static Application applicationContext = null;
 
-	/* @Thunk */ boolean isCoreProcess;
+	@Thunk
+	static boolean isCoreProcess = false;
 
-	/* @Thunk */ static Object oVuzeService;
+	private static Picasso picassoInstance = null;
 
-	/* @Thunk */ static boolean vuzeCoreStarted = false;
+	public static void onClearFromRecentService() {
+		if (isCoreProcess) {
+			return;
+		}
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "Application.onClearFromRecentService");
+		}
 
-	private static Boolean isCoreAllowed = null;
-
-	private static Picasso picassoInstance;
-
+		SessionManager.removeAllSessions();
+		if (networkState != null) {
+			networkState.dipose();
+			networkState = null;
+		}
+		appPreferences = null;
+		/*
+		if (picassoInstance != null) {
+			picassoInstance.shutdown();
+			picassoInstance = null;
+		}
+		*/
+	}
+	
 	@Override
 	public void onCreate() {
 		super.onCreate();
 
-//		android.os.Debug.waitForDebugger();
-
 		if (AndroidUtils.DEBUG) {
-			Log.d(TAG, "Application.onCreate " + BuildConfig.FLAVOR);
+			Log.d(TAG, "Application.onCreate " + BuildConfig.FLAVOR + " " + getApplicationContext() + ";" + getBaseContext());
 		}
 
-		applicationContext = getApplicationContext();
+		applicationContext = (Application) getApplicationContext();
 
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG,
@@ -91,11 +110,12 @@ public class VuzeRemoteApp
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "Core Process? " + isCoreProcess);
 		}
-
+		
 		// There was a bug in gms.analytics where creating an instance took forever
 		// Putting first call on new thread didn't help much, but I'm leaving this
 		// code here because it takes CPU cycles and block the app startup
 		new Thread(new Runnable() {
+			@SuppressWarnings("HardCodedStringLiteral")
 			public void run() {
 				IVuzeEasyTracker vet = VuzeEasyTracker.getInstance();
 				vet.registerExceptionReporter(applicationContext);
@@ -168,8 +188,6 @@ public class VuzeRemoteApp
 			}
 		}, "VET Init").start();
 
-		networkState = new NetworkState(applicationContext);
-
 		if (!isCoreProcess) {
 			initMainApp();
 		}
@@ -215,7 +233,15 @@ public class VuzeRemoteApp
 		picassoInstance = new Picasso.Builder(applicationContext).addRequestHandler(
 				new IcoRequestHandler()).build();
 
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "initMainApp: picassoInstance now initialized");
+		}
 		getAppPreferences().setNumOpens(appPreferences.getNumOpens() + 1);
+
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "initMainApp: increased # opens");
+		}
+
 
 		// Common hack to always show overflow icon on actionbar if menu has
 		// overflow
@@ -246,45 +272,51 @@ public class VuzeRemoteApp
 
 		switch (level) {
 			case TRIM_MEMORY_UI_HIDDEN: // not really a low memory event
+				if (AndroidUtils.DEBUG) {
+					Log.d(TAG, "onTrimMemory TRIM_MEMORY_UI_HIDDEN");
+				}
 				break;
 			case TRIM_MEMORY_BACKGROUND: // app moved to background
+				if (AndroidUtils.DEBUG) {
+					Log.d(TAG, "onTrimMemory TRIM_MEMORY_BACKGROUND");
+				}
 				break;
 			case TRIM_MEMORY_MODERATE:
 				// app in middle of background list 
 				if (AndroidUtils.DEBUG) {
 					Log.d(TAG, "onTrimMemory Moderate");
 				}
-				SessionInfoManager.clearTorrentFilesCaches(true);
+				SessionManager.clearTorrentFilesCaches(true);
 				break;
 			case TRIM_MEMORY_COMPLETE:
 				if (AndroidUtils.DEBUG) {
 					Log.d(TAG, "onTrimMemory Complete");
 				}
 				// app next to be killed unless more mem found
-				SessionInfoManager.clearTorrentCaches(false); // clear all
+				SessionManager.clearTorrentCaches(false); // clear all
 				break;
 			case TRIM_MEMORY_RUNNING_MODERATE:
 				if (AndroidUtils.DEBUG) {
 					Log.d(TAG, "onTrimMemory RunningModerate");
 				}
-				SessionInfoManager.clearTorrentCaches(true); // clear all except
+				SessionManager.clearTorrentCaches(true); // clear all except
 				// current
 				break;
 			case TRIM_MEMORY_RUNNING_LOW: // Low memory
 				if (AndroidUtils.DEBUG) {
 					Log.d(TAG, "onTrimMemory RunningLow");
 				}
-				SessionInfoManager.clearTorrentCaches(true); // clear all except
+				SessionManager.clearTorrentCaches(true); // clear all except
 				// current
-				SessionInfoManager.clearTorrentFilesCaches(true); // clear all except last file
+				SessionManager.clearTorrentFilesCaches(true); // clear all except last file
 				break;
 			case TRIM_MEMORY_RUNNING_CRITICAL:
 				if (AndroidUtils.DEBUG) {
 					Log.d(TAG, "onTrimMemory RunningCritical");
 				}
-				SessionInfoManager.clearTorrentCaches(true); // clear all except
+				SessionManager.clearTorrentCaches(true); // clear all except
 				// current
-				SessionInfoManager.clearTorrentFilesCaches(true); // clear all except last file
+				SessionManager.clearTorrentFilesCaches(true); // clear all except last file
 				break;
 			default:
 				if (AndroidUtils.DEBUG) {
@@ -302,25 +334,23 @@ public class VuzeRemoteApp
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "onLowMemory");
 		}
-		SessionInfoManager.clearTorrentCaches(false);
+		SessionManager.clearTorrentCaches(false);
 		super.onLowMemory();
 	}
 
-	public int pxToDpX(int px) {
+	private int pxToDpX(int px) {
 		DisplayMetrics dm = getResources().getDisplayMetrics();
 
-		int dp = Math.round(px / (dm.xdpi / DisplayMetrics.DENSITY_DEFAULT));
-		return dp;
+		return Math.round(px / (dm.xdpi / DisplayMetrics.DENSITY_DEFAULT));
 	}
 
-	public int pxToDpY(int py) {
+	private int pxToDpY(int py) {
 		DisplayMetrics dm = getResources().getDisplayMetrics();
 
-		int dp = Math.round(py / (dm.ydpi / DisplayMetrics.DENSITY_DEFAULT));
-		return dp;
+		return Math.round(py / (dm.ydpi / DisplayMetrics.DENSITY_DEFAULT));
 	}
 
-	public float convertPixelsToDp(float px) {
+	private float convertPixelsToDp(float px) {
 		DisplayMetrics dm = getResources().getDisplayMetrics();
 		float dp = px / (dm.densityDpi / 160f);
 		return Math.round(dp);
@@ -349,6 +379,9 @@ public class VuzeRemoteApp
 	}
 
 	public static NetworkState getNetworkState() {
+		if (networkState == null) {
+			networkState = new NetworkState(applicationContext);
+		}
 		return networkState;
 	}
 
@@ -356,137 +389,8 @@ public class VuzeRemoteApp
 		return applicationContext;
 	}
 
-	public static boolean startVuzeCoreService() {
-		if (!isCoreAllowed()) {
-			if (AndroidUtils.DEBUG) {
-				Log.d(TAG, "initMainApp: Not starting core");
-			}
-			return false;
-		}
-		// Start VuzeCore
-		try {
-			Class<?> claVuzeService = Class.forName(
-					"com.vuze.android.remote.service.VuzeServiceInit");
-			if (AndroidUtils.DEBUG) {
-				Log.d(TAG, "onCreate: Start VuzeService");
-			}
-			Constructor<?> constructor = claVuzeService.getConstructor(Context.class,
-					Runnable.class, Runnable.class);
-			oVuzeService = constructor.newInstance(applicationContext,
-					new Runnable() {
-						@Override
-						public void run() {
-							// Core started
-							if (AndroidUtils.DEBUG) {
-								Log.d(TAG, "Core Started");
-							}
-							vuzeCoreStarted = true;
-						}
-					}, new Runnable() {
-						@Override
-						public void run() {
-							// Core Stopped/Stopping
-							if (AndroidUtils.DEBUG) {
-								Log.d(TAG, "Core Stopped");
-							}
-							vuzeCoreStarted = false;
-							oVuzeService = null;
-						}
-					});
-
-			try {
-				Method methodPowerUp = oVuzeService.getClass().getDeclaredMethod(
-						"powerUp");
-				methodPowerUp.invoke(oVuzeService);
-			} catch (Throwable t) {
-				Log.e(TAG, "powerUp: ", t);
-				isCoreAllowed = false;
-				return false;
-			}
-			return true;
-		} catch (Throwable t) {
-			Log.e(TAG, "createCore: ", t);
-			isCoreAllowed = false;
-		}
-		return false;
-	}
-
-	public static boolean isCoreAllowed() {
-		if (isCoreAllowed == null) {
-			try {
-				@SuppressWarnings("UnusedAssignment")
-				Class<?> claVuzeService = Class.forName(
-						"com.vuze.android.remote.service.VuzeServiceInit");
-				isCoreAllowed = true;
-			} catch (ClassNotFoundException e) {
-				isCoreAllowed = false;
-			}
-		}
-		return isCoreAllowed;
-	}
-
-	// TODO: Tell users some status progress
-	public static void waitForCore(final Activity activity, int maxMS) {
-		if (AndroidUtilsUI.isUIThread()) {
-			Log.e(TAG, "waitForCore: ON UI THREAD for waitForCore "
-					+ AndroidUtils.getCompressedStackTrace());
-		}
-		if (oVuzeService == null && !startVuzeCoreService()) {
-			if (AndroidUtils.DEBUG) {
-				Log.d(TAG, "waitForCore: No oVuzeService");
-			}
-			return;
-		}
-
-		if (AndroidUtils.DEBUG) {
-			Log.d(TAG, "waitForCore");
-		}
-
-		try {
-			Method methodPowerUp = oVuzeService.getClass().getDeclaredMethod(
-					"powerUp");
-			methodPowerUp.invoke(oVuzeService);
-		} catch (Throwable t) {
-			Log.e(TAG, "powerUp: ", t);
-			return;
-		}
-		boolean shownToast = false;
-		int i = maxMS / 100;
-		while (!vuzeCoreStarted && i-- > 0) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-			}
-
-			if (activity != null && !shownToast) {
-				shownToast = true;
-				activity.runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						Toast.makeText(activity, R.string.toast_core_starting,
-								Toast.LENGTH_LONG).show();
-					}
-				});
-			}
-		}
-		if (AndroidUtils.DEBUG) {
-			Log.d(TAG, "waitForCore: Core started (" + i + ")");
-		}
-	}
-
-	public static void shutdownCoreService() {
-		if (oVuzeService != null) {
-			try {
-				Method methodStopService = oVuzeService.getClass().getDeclaredMethod(
-						"stopService");
-				methodStopService.invoke(oVuzeService);
-			} catch (Throwable t) {
-				Log.e(TAG, "stopService: ", t);
-			}
-		}
-	}
-
-	public static class IcoRequestHandler
+	@Thunk
+	static class IcoRequestHandler
 		extends RequestHandler
 	{
 
@@ -520,6 +424,7 @@ public class VuzeRemoteApp
 
 			//Picasso.LoadedFrom loadedFrom = response.cached ? DISK : NETWORK;
 
+			@SuppressWarnings("deprecation")
 			Bitmap bitmap = response.getBitmap();
 			if (bitmap != null) {
 				return new Result(bitmap, Picasso.LoadedFrom.DISK);
@@ -562,4 +467,19 @@ public class VuzeRemoteApp
 	public static Picasso getPicassoInstance() {
 		return picassoInstance;
 	}
+
+	public static boolean isCoreProcess() {
+		return isCoreProcess;
+	}
+
+	@Override
+	protected void finalize()
+			throws Throwable {
+		if (AndroidUtils.DEBUG) {
+			Log.d(TAG, "Application.finalize "
+					+ (isCoreProcess ? "CoreProcess" : "MainProcess"));
+		}
+		super.finalize();
+	}
+
 }

@@ -17,35 +17,39 @@
 
 package com.vuze.android.remote.dialog;
 
-import java.util.HashMap;
 import java.util.Map;
 
-import android.app.*;
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
+import com.vuze.android.remote.rpc.ReplyMapReceivedListener;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.Thunk;
+
+import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
+import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnClickListener;
 import android.content.DialogInterface.OnDismissListener;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 import android.view.View;
-import android.widget.*;
+import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.AndroidUtils.AlertDialogBuilder;
-import com.vuze.android.remote.SessionInfo.RpcExecuter;
-import com.vuze.android.remote.rpc.ReplyMapReceivedListener;
-import com.vuze.android.remote.rpc.TransmissionRPC;
+import android.widget.RadioButton;
 
 public class DialogFragmentRcmAuth
 	extends DialogFragmentBase
 {
 	private static final String TAG = "RcmAuth";
 
-	/* @Thunk */ static boolean showingDialog = false;
+	@Thunk
+	static boolean showingDialog = false;
 
 	public interface DialogFragmentRcmAuthListener
 	{
@@ -61,18 +65,17 @@ public class DialogFragmentRcmAuth
 		}
 		DialogFragmentRcmAuth dlg = new DialogFragmentRcmAuth();
 		Bundle bundle = new Bundle();
-		bundle.putString(SessionInfoManager.BUNDLE_KEY, profileID);
+		bundle.putString(SessionManager.BUNDLE_KEY, profileID);
 		dlg.setArguments(bundle);
-		showingDialog = true;
-		if (!AndroidUtilsUI
-				.showDialog(dlg, fragment.getSupportFragmentManager(), TAG)) {
-			showingDialog = false;
-		}
+		showingDialog = AndroidUtilsUI.showDialog(dlg,
+				fragment.getSupportFragmentManager(), TAG);
 	}
 
-	/* @Thunk */ boolean all;
+	@Thunk
+	boolean all;
 
-	/* @Thunk */ DialogFragmentRcmAuthListener mListener;
+	@Thunk
+	DialogFragmentRcmAuthListener mListener;
 
 	@NonNull
 	@Override
@@ -121,59 +124,47 @@ public class DialogFragmentRcmAuth
 		super.onCancel(dialog);
 	}
 
-	protected void closeDialog(final boolean enable) {
+	@Thunk
+	void closeDialog(final boolean enable) {
 		showingDialog = false;
 		Bundle arguments = getArguments();
 		if (arguments == null) {
+			Log.e(TAG, "arguments null");
 			return;
 		}
-		String id = arguments.getString(SessionInfoManager.BUNDLE_KEY);
-		if (id == null) {
+		String profileID = arguments.getString(SessionManager.BUNDLE_KEY);
+		if (profileID == null) {
+			Log.e(TAG, "profileID null");
 			return;
 		}
 
 		if (enable && all) {
-			DialogFragmentRcmAuthAll.openDialog(getActivity(), id);
+			DialogFragmentRcmAuthAll.openDialog(getActivity(), profileID);
 			return;
 		}
 
-		SessionInfo sessionInfo = SessionInfoManager.getSessionInfo(id,
-				getActivity());
-		if (sessionInfo == null) {
-			return;
-		}
-		sessionInfo.executeRpc(new RpcExecuter() {
+		Session session = SessionManager.getSession(profileID, null,
+				null);
+		session.rcm.setEnabled(enable, all, new ReplyMapReceivedListener() {
 			@Override
-			public void executeRpc(TransmissionRPC rpc) {
-				Map<String, Object> map = new HashMap<>(2, 1.0f);
-				map.put("enable", enable);
-				if (enable) {
-					map.put("all-sources", all);
+			public void rpcSuccess(String id, Map<?, ?> optionalMap) {
+				if (mListener != null) {
+					mListener.rcmEnabledChanged(enable, all);
 				}
-				rpc.simpleRpcCall("rcm-set-enabled", map,
-						new ReplyMapReceivedListener() {
+			}
 
-							@Override
-							public void rpcSuccess(String id, Map<?, ?> optionalMap) {
-								if (mListener != null) {
-									mListener.rcmEnabledChanged(enable, all);
-								}
-							}
+			@Override
+			public void rpcFailure(String id, String message) {
+				if (mListener != null) {
+					mListener.rcmEnabledChanged(false, false);
+				}
+			}
 
-							@Override
-							public void rpcFailure(String id, String message) {
-								if (mListener != null) {
-									mListener.rcmEnabledChanged(false, false);
-								}
-							}
-
-							@Override
-							public void rpcError(String id, Exception e) {
-								if (mListener != null) {
-									mListener.rcmEnabledChanged(false, false);
-								}
-							}
-						});
+			@Override
+			public void rpcError(String id, Exception e) {
+				if (mListener != null) {
+					mListener.rcmEnabledChanged(false, false);
+				}
 			}
 		});
 	}

@@ -16,29 +16,40 @@
 
 package com.vuze.android.remote.adapter;
 
+import com.astuetz.PagerSlidingTabStrip;
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.fragment.OpenOptionsFilesFragment;
+import com.vuze.android.remote.fragment.OpenOptionsGeneralFragment;
+import com.vuze.android.remote.fragment.OpenOptionsTagsFragment;
+import com.vuze.android.remote.rpc.RPCSupports;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
+
 import android.content.res.Resources;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.view.ViewPager;
 
 //import com.astuetz.PagerSlidingTabStrip;
-import com.astuetz.PagerSlidingTabStrip;
-
-import com.vuze.android.remote.R;
-import com.vuze.android.remote.VuzeRemoteApp;
-import com.vuze.android.remote.fragment.*;
-
 
 public class OpenOptionsPagerAdapter
 	extends TorrentPagerAdapter
 {
-	int count = 3;
+	private int count = 3;
+
+	private final boolean needsGeneralFragment;
 
 	public OpenOptionsPagerAdapter(FragmentManager fm, ViewPager pager,
-			PagerSlidingTabStrip tabs, boolean needsGeneralFragment) {
+			PagerSlidingTabStrip tabs, boolean needsGeneralFragment, String remoteProfileID) {
 		super(fm);
 		count = needsGeneralFragment ? 3 : 2;
-		init(fm, pager, tabs);
+		this.needsGeneralFragment = needsGeneralFragment;
+		Session session = SessionManager.getSession(remoteProfileID,
+			null, null);
+		if (!session.getSupports(RPCSupports.SUPPORTS_TAGS)) {
+			count--;
+		}
+		init(pager, tabs);
 	}
 
 	/* (non-Javadoc)
@@ -47,7 +58,7 @@ public class OpenOptionsPagerAdapter
 	@Override
 	public Fragment createItem(int position) {
 		Fragment fragment;
-		if (count == 2) {
+		if (!needsGeneralFragment) {
 			position++;
 		}
 		switch (position) {
@@ -75,7 +86,7 @@ public class OpenOptionsPagerAdapter
 
 	@Override
 	public CharSequence getPageTitle(int position) {
-		if (count == 2) {
+		if (!needsGeneralFragment) {
 			position++;
 		}
 		Resources resources = VuzeRemoteApp.getContext().getResources();

@@ -18,19 +18,26 @@ package com.vuze.android.remote.adapter;
 
 import java.util.Map;
 
-import android.support.annotation.NonNull;
+import com.vuze.android.remote.session.Session;
 
-import com.vuze.android.remote.SessionInfo;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import org.jetbrains.annotations.NonNls;
 
 public abstract class FilesAdapterDisplayObject
 	implements Comparable<FilesAdapterDisplayObject>
 {
+	protected static final String KEY_IS_FOLDER = "isFolder";
+
 	public final int level;
 
 	public final FilesAdapterDisplayFolder parent;
 
+	@NonNls
 	public final String name;
 
+	@NonNls
 	public final String path;
 
 	public FilesAdapterDisplayObject(int level, FilesAdapterDisplayFolder parent,
@@ -41,7 +48,8 @@ public abstract class FilesAdapterDisplayObject
 		this.name = name;
 	}
 
-	public abstract Map<?, ?> getMap(SessionInfo sessionInfo, long torrentID);
+	public abstract Map<?, ?> getMap(@Nullable Session session,
+			long torrentID);
 
 	public int compareTo(@NonNull FilesAdapterDisplayObject another) {
 		int i = path.compareTo(another.path);

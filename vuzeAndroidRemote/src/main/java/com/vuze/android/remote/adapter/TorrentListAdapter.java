@@ -21,10 +21,14 @@ import java.util.*;
 import com.vuze.android.FlexibleRecyclerAdapter;
 import com.vuze.android.FlexibleRecyclerSelectionListener;
 import com.vuze.android.remote.*;
-import com.vuze.android.remote.TextViewFlipper.FlipValidator;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.util.TextViewFlipper.FlipValidator;
+import com.vuze.util.ComparatorMapFields;
 import com.vuze.util.MapUtils;
+import com.vuze.util.Thunk;
 
 import android.content.Context;
+import android.support.annotation.Nullable;
 import android.support.v4.util.LongSparseArray;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -57,20 +61,22 @@ public class TorrentListAdapter
 
 	public final static int FILTERBY_STOPPED = 2;
 
-	public static final boolean DEBUG = AndroidUtils.DEBUG_ADAPTER;
+	@Thunk
+	static final boolean DEBUG = AndroidUtils.DEBUG_ADAPTER;
 
-	static final String TAG = "TorrentListAdapter";
+	private static final String TAG = "TorrentListAdapter";
 
-	/* @Thunk */ ComparatorMapFields sorter;
+	@Thunk
+	ComparatorMapFields sorter;
 
 	private int viewType;
 
 	public static class ViewHolderFlipValidator
 		implements FlipValidator
 	{
-		private TorrentListViewHolder holder;
+		private final TorrentListViewHolder holder;
 
-		private long torrentID;
+		private final long torrentID;
 
 		public ViewHolderFlipValidator(TorrentListViewHolder holder,
 				long torrentID) {
@@ -84,17 +90,21 @@ public class TorrentListAdapter
 		}
 	}
 
-	/* @Thunk */ Context context;
+	@Thunk
+	Context context;
 
 	private TorrentFilter filter;
 
-	public final Object mLock = new Object();
+	@Thunk
+	final Object mLock = new Object();
 
-	/* @Thunk */ SessionInfo sessionInfo;
+	@Thunk
+	Session session;
 
-	private TorrentListRowFiller torrentListRowFiller;
+	private final TorrentListRowFiller torrentListRowFiller;
 
-	/* @Thunk */ boolean isRefreshing;
+	@Thunk
+	boolean isRefreshing;
 
 	public TorrentListAdapter(Context context,
 			FlexibleRecyclerSelectionListener selector) {
@@ -125,7 +135,7 @@ public class TorrentListAdapter
 
 			@Override
 			public Map<?, ?> mapGetter(Object o) {
-				return sessionInfo.getTorrent((Long) o);
+				return session.torrent.getCachedTorrent((Long) o);
 			}
 
 			@SuppressWarnings("rawtypes")
@@ -151,8 +161,8 @@ public class TorrentListAdapter
 
 	}
 
-	public void setSessionInfo(SessionInfo sessionInfo) {
-		this.sessionInfo = sessionInfo;
+	public void setSession(Session session) {
+		this.session = session;
 	}
 
 	@Override
@@ -186,14 +196,14 @@ public class TorrentListAdapter
 
 			FilterResults results = new FilterResults();
 
-			if (sessionInfo == null) {
+			if (session == null) {
 				if (DEBUG) {
-					Log.d(TAG, "performFiltering skipped: No sessionInfo");
+					Log.d(TAG, "performFiltering skipped: No session");
 				}
 				return results;
 			}
 
-			LongSparseArray<Map<?, ?>> torrentList = sessionInfo.getTorrentListSparseArray();
+			LongSparseArray<Map<?, ?>> torrentList = session.torrent.getListAsSparseArray();
 			int size = torrentList.size();
 
 			if (DEBUG) {
@@ -254,9 +264,10 @@ public class TorrentListAdapter
 			}
 		}
 
+		@Nullable
 		@Override
 		protected String getStringToConstrain(Long torrentID) {
-			Map<?, ?> map = sessionInfo.getTorrent(torrentID);
+			Map<?, ?> map = session.torrent.getCachedTorrent(torrentID);
 			if (map == null) {
 				return null;
 			}
@@ -279,14 +290,16 @@ public class TorrentListAdapter
 		getFilter().refilter();
 	}
 
-	/* @Thunk */ boolean filterCheck(long filterMode, long torrentID) {
-		Map<?, ?> map = sessionInfo.getTorrent(torrentID);
+	@Thunk
+	boolean filterCheck(long filterMode, long torrentID) {
+		Map<?, ?> map = session.torrent.getCachedTorrent(torrentID);
 		if (map == null) {
 			return false;
 		}
 
 		if (filterMode > 10) {
-			List<?> listTagUIDs = MapUtils.getMapList(map, "tag-uids", null);
+			List<?> listTagUIDs = MapUtils.getMapList(map,
+					TransmissionVars.FIELD_TORRENT_TAG_UIDS, null);
 			return listTagUIDs != null && listTagUIDs.contains(filterMode);
 		}
 
@@ -356,9 +369,9 @@ public class TorrentListAdapter
 	}
 
 	private void doSort() {
-		if (sessionInfo == null) {
+		if (session == null) {
 			if (DEBUG) {
-				Log.d(TAG, "doSort skipped: No sessionInfo");
+				Log.d(TAG, "doSort skipped: No session");
 			}
 			return;
 		}
@@ -376,14 +389,14 @@ public class TorrentListAdapter
 	}
 
 	public Map<?, ?> getTorrentItem(int position) {
-		if (sessionInfo == null) {
+		if (session == null) {
 			return new HashMap<Object, Object>();
 		}
 		Long item = getItem(position);
 		if (item == null) {
 			return new HashMap<Object, Object>();
 		}
-		return sessionInfo.getTorrent(item);
+		return session.torrent.getCachedTorrent(item);
 	}
 
 	public long getTorrentID(int position) {
@@ -423,7 +436,7 @@ public class TorrentListAdapter
 	public void onBindFlexibleViewHolder(TorrentListViewHolder holder,
 			int position) {
 		Map<?, ?> item = getTorrentItem(position);
-		torrentListRowFiller.fillHolder(holder, item, sessionInfo);
+		torrentListRowFiller.fillHolder(holder, item, session);
 	}
 
 	@Override

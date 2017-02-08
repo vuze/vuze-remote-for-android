@@ -16,8 +16,16 @@
 
 package com.vuze.android.remote.dialog;
 
+import java.util.ArrayList;
+
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
+import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile.GenericRemoteProfileListener;
+import com.vuze.android.remote.session.RemoteProfile;
+import com.vuze.util.JSONUtils;
+import com.vuze.util.Thunk;
+
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlertDialog.Builder;
 import android.app.Dialog;
 import android.content.Context;
@@ -31,17 +39,11 @@ import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.EditText;
 
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.AndroidUtils.AlertDialogBuilder;
-import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile.GenericRemoteProfileListener;
-
-import com.vuze.util.JSONUtils;
-
-import java.util.ArrayList;
-
 public class DialogFragmentVuzeCoreProfile
 	extends DialogFragment
 {
+
+	private static final String TAG = "VuzeProfileEdit";
 
 	private GenericRemoteProfileListener mListener;
 
@@ -64,7 +66,7 @@ public class DialogFragmentVuzeCoreProfile
 		Bundle arguments = getArguments();
 
 		String remoteAsJSON = arguments == null ? null
-				: arguments.getString("remote.json");
+				: arguments.getString(RemoteUtils.KEY_REMOTE_JSON);
 		if (remoteAsJSON != null) {
 			try {
 				remoteProfile = new RemoteProfile(JSONUtils.decodeJSON(remoteAsJSON));
@@ -103,10 +105,11 @@ public class DialogFragmentVuzeCoreProfile
 		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
 		boolean alreadyExists = appPreferences.remoteExists(remoteProfile.getID());
 
+		CorePrefs corePrefs = new CorePrefs();
 		switchCoreStartup = (CompoundButton) view.findViewById(
 				R.id.profile_core_startup);
 		Boolean prefAutoStart = !alreadyExists ? true
-				: CorePrefs.getPrefAutoStart();
+				: corePrefs.getPrefAutoStart();
 		switchCoreStartup.setChecked(prefAutoStart);
 
 		switchCoreAllowCellData = (CompoundButton) view.findViewById(
@@ -114,7 +117,7 @@ public class DialogFragmentVuzeCoreProfile
 		switchCoreAllowCellData.setVisibility(
 				VuzeRemoteApp.getNetworkState().hasMobileDataCapability() ? View.VISIBLE
 						: View.GONE);
-		switchCoreAllowCellData.setChecked(CorePrefs.getPrefAllowCellData());
+		switchCoreAllowCellData.setChecked(corePrefs.getPrefAllowCellData());
 
 		switchCoreDisableSleep = (CompoundButton) view.findViewById(
 				R.id.profile_core_disablesleep);
@@ -123,7 +126,7 @@ public class DialogFragmentVuzeCoreProfile
 						PackageManager.FEATURE_WIFI)
 						&& AndroidUtils.hasPermisssion(VuzeRemoteApp.getContext(),
 								Manifest.permission.WAKE_LOCK) ? View.VISIBLE : View.GONE);
-		switchCoreDisableSleep.setChecked(CorePrefs.getPrefDisableSleep());
+		switchCoreDisableSleep.setChecked(corePrefs.getPrefDisableSleep());
 
 		switchCoreOnlyPluggedIn = (CompoundButton) view.findViewById(
 				R.id.profile_core_onlypluggedin);
@@ -133,7 +136,7 @@ public class DialogFragmentVuzeCoreProfile
 		// device temporarily attached to wall USB charger)
 		switchCoreOnlyPluggedIn.setVisibility(
 				AndroidUtils.isTV() ? View.GONE : View.VISIBLE);
-		switchCoreOnlyPluggedIn.setChecked(CorePrefs.getPrefOnlyPluggedIn());
+		switchCoreOnlyPluggedIn.setChecked(corePrefs.getPrefOnlyPluggedIn());
 
 		return builder.create();
 	}
@@ -147,7 +150,8 @@ public class DialogFragmentVuzeCoreProfile
 		}
 	}
 
-	protected void saveAndClose() {
+	@Thunk
+	void saveAndClose() {
 
 		remoteProfile.setNick(textNick.getText().toString());
 
@@ -157,7 +161,7 @@ public class DialogFragmentVuzeCoreProfile
 		SharedPreferences sharedPreferences = appPreferences.getSharedPreferences();
 		SharedPreferences.Editor edit = sharedPreferences.edit();
 
-		ArrayList<String> permissionsNeeded = new ArrayList<>();
+		ArrayList<String> permissionsNeeded = new ArrayList<>(4);
 		permissionsNeeded.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
 		if (switchCoreStartup.getVisibility() == View.VISIBLE) {
@@ -198,7 +202,7 @@ public class DialogFragmentVuzeCoreProfile
 	@Override
 	public void onStart() {
 		super.onStart();
-		VuzeEasyTracker.getInstance(this).fragmentStart(this, "VuzeProfileEdit");
+		VuzeEasyTracker.getInstance(this).fragmentStart(this, TAG);
 	}
 
 	@Override

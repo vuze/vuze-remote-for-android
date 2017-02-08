@@ -16,14 +16,17 @@
 
 package com.vuze.android.remote.adapter;
 
-import android.support.annotation.NonNull;
-
 import java.util.HashMap;
 import java.util.Map;
 
-import com.vuze.android.remote.SessionInfo;
+import com.vuze.android.remote.session.Session;
 import com.vuze.android.remote.TransmissionVars;
 import com.vuze.util.MapUtils;
+
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+
+import org.jetbrains.annotations.NonNls;
 
 public class FilesAdapterDisplayFolder
 	extends FilesAdapterDisplayObject
@@ -40,20 +43,21 @@ public class FilesAdapterDisplayFolder
 
 	public long sizeWanted;
 
+	@NonNls
 	public final String folder;
 
 	public FilesAdapterDisplayFolder(String folder, int level,
-			FilesAdapterDisplayFolder parent, String path, String name) {
+			@Nullable FilesAdapterDisplayFolder parent, String path, String name) {
 		super(level, parent, path, name);
 		this.folder = folder;
 		map.put("name", folder);
 
-		map.put("isFolder", true);
+		map.put(FilesAdapterDisplayFile.KEY_IS_FOLDER, true);
 		map.put(TransmissionVars.FIELD_FILES_INDEX, -1);
 	}
 
 	@Override
-	public Map<?, ?> getMap(SessionInfo sessionInfo, long torrentID) {
+	public Map<?, ?> getMap(Session session, long torrentID) {
 		return map;
 	}
 

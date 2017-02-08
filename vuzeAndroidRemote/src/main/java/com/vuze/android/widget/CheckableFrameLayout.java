@@ -16,15 +16,20 @@
 
 package com.vuze.android.widget;
 
+import com.vuze.android.FlexibleRecyclerView;
+import com.vuze.android.remote.AndroidUtils;
+import com.vuze.android.remote.VuzeEasyTracker;
+
 import android.content.Context;
 import android.graphics.Rect;
+import android.support.annotation.Nullable;
+import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewParent;
 import android.widget.Checkable;
 import android.widget.FrameLayout;
-
-import com.vuze.android.remote.AndroidUtils;
 
 /**
  * FROM https://github.com/android/platform_packages_apps_music/blob/master/src/com/android/music/CheckableRelativeLayout.java
@@ -54,7 +59,7 @@ public class CheckableFrameLayout
 	@Override
 	protected int[] onCreateDrawableState(int extraSpace) {
 		final int[] drawableState = super.onCreateDrawableState(extraSpace + 1);
-		if (isChecked()) {
+		if (mChecked) {
 			mergeDrawableStates(drawableState, CHECKED_STATE_SET);
 		}
 		return drawableState;
@@ -64,6 +69,7 @@ public class CheckableFrameLayout
 		setChecked(!mChecked);
 	}
 
+	@Override
 	public boolean isChecked() {
 		return mChecked;
 	}
@@ -73,6 +79,44 @@ public class CheckableFrameLayout
 			mChecked = checked;
 			refreshDrawableState();
 		}
+	}
+
+	@Nullable
+	@Override
+	public View focusSearch(int direction) {
+		View view = super.focusSearch(direction);
+		try {
+			if (direction != FOCUS_DOWN) {
+				return view;
+			}
+			ViewParent parent = getParent();
+			// Moving down, but if we are moving to another item in the recycler, then it's ok
+			if (!(parent instanceof FlexibleRecyclerView)) {
+				return view;
+			}
+			FlexibleRecyclerView rv = (FlexibleRecyclerView) parent;
+			int nextFocusDownId = rv.getNextFocusDownId();
+			if (nextFocusDownId <= 0) {
+				return view;
+			}
+			if (view == null || view.getParent() != parent) {
+				// New view not within the same Recycler, ensure we are at the end of the list
+				RecyclerView.ViewHolder viewHolder = rv.findContainingViewHolder(this);
+				if (viewHolder != null) {
+					if (viewHolder.getAdapterPosition() == rv.getAdapter().getItemCount()
+							- 1) {
+						// End of list, move to next focus down
+						view = rv.getRootView().findViewById(nextFocusDownId);
+					}
+				}
+			}
+		} catch (Throwable t) {
+			if (AndroidUtils.DEBUG) {
+				t.printStackTrace();
+			}
+			VuzeEasyTracker.getInstance().logError(t);
+		}
+		return view;
 	}
 
 	@Override

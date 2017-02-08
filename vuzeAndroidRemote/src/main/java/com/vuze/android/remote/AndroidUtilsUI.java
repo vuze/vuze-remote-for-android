@@ -21,6 +21,15 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.http.conn.HttpHostConnectException;
+
+import com.rengwuxian.materialedittext.MaterialEditText;
+import com.vuze.android.MenuDialogHelper;
+import com.vuze.android.remote.rpc.RPCException;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.android.widget.CustomToast;
+
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.*;
@@ -36,10 +45,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Looper;
 import android.provider.Browser;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.annotation.StringRes;
 import android.support.v4.app.*;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewPager;
-import android.support.v4.widget.DrawerLayout;
+import android.support.v7.view.ActionMode.Callback;
 import android.support.v7.view.menu.MenuBuilder;
 import android.support.v7.widget.AppCompatDrawableManager;
 import android.text.SpannableString;
@@ -53,14 +65,6 @@ import android.view.*;
 import android.view.inputmethod.EditorInfo;
 import android.widget.*;
 
-import com.rengwuxian.materialedittext.MaterialEditText;
-import com.vuze.android.remote.activity.DrawerActivity;
-import com.vuze.android.remote.fragment.ActionModeBeingReplacedListener;
-import com.vuze.android.MenuDialogHelper;
-import com.vuze.android.remote.rpc.RPCException;
-
-import org.apache.http.conn.HttpHostConnectException;
-
 @SuppressWarnings("WeakerAccess")
 public class AndroidUtilsUI
 {
@@ -68,9 +72,22 @@ public class AndroidUtilsUI
 
 	private static final String TAG = "AndroidUtilsUI";
 
+	public static class AlertDialogBuilder
+	{
+		public View view;
+
+		public final AlertDialog.Builder builder;
+
+		public AlertDialogBuilder(View view, AlertDialog.Builder builder) {
+			super();
+			this.view = view;
+			this.builder = builder;
+		}
+	}
+
 	static boolean hasAlertDialogOpen = false;
 
-	private static AlertDialog currentSingleDialog;
+	private static AlertDialog currentSingleDialog = null;
 
 	public static ArrayList<View> findByClass(ViewGroup root, Class type,
 			ArrayList<View> list) {
@@ -121,28 +138,41 @@ public class AndroidUtilsUI
 				break;
 			}
 
-			case KeyEvent.KEYCODE_DPAD_LEFT: {
-				if (a instanceof DrawerActivity) {
-					DrawerActivity da = (DrawerActivity) a;
-					DrawerLayout drawerLayout = da.getDrawerLayout();
-					View viewFocus = a.getCurrentFocus();
-					boolean canOpenDrawer = viewFocus != null
-							&& "leftmost".equals(viewFocus.getTag());
-					if (canOpenDrawer) {
-						drawerLayout.openDrawer(Gravity.LEFT);
-						drawerLayout.requestFocus();
-						return true;
-					}
-				}
-				break;
-			}
-
 		}
 
 		return false;
 	}
 
-	public static void onCreate(Context context) {
+	public static void invalidateOptionsMenuHC(final Activity activity) {
+		invalidateOptionsMenuHC(activity, null);
+	}
+
+	public static void invalidateOptionsMenuHC(final Activity activity,
+			@Nullable final android.support.v7.view.ActionMode mActionMode) {
+		if (activity == null) {
+			return;
+		}
+		activity.runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				if (activity.isFinishing()) {
+					return;
+				}
+				if (mActionMode != null) {
+					mActionMode.invalidate();
+					return;
+				}
+				if (activity instanceof FragmentActivity) {
+					FragmentActivity aba = (FragmentActivity) activity;
+					aba.supportInvalidateOptionsMenu();
+				} else {
+					ActivityCompat.invalidateOptionsMenu(activity);
+				}
+			}
+		});
+	}
+
+	public static void onCreate(Context context, String TAG) {
 		// AppThemeDark is LeanBack, and LeanBack is API 17
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
 			boolean isTV = AndroidUtils.isTV();
@@ -158,6 +188,15 @@ public class AndroidUtilsUI
 //					window.clearFlags(WindowManager.LayoutParams
 //							.FLAG_LAYOUT_IN_OVERSCAN);
 //				}
+			}
+		}
+		if (context instanceof Activity) {
+			Intent intent = ((Activity) context).getIntent();
+			if (AndroidUtils.DEBUG) {
+				Log.d(TAG, "intent = " + intent);
+				if (intent != null) {
+					Log.d(TAG, "Type:" + intent.getType() + ";" + intent.getDataString());
+				}
 			}
 		}
 	}
@@ -182,7 +221,7 @@ public class AndroidUtilsUI
 		try {
 			TypedArray arr = context.obtainStyledAttributes(typedValue.data,
 					new int[] {
-							r_attr_theme_color
+						r_attr_theme_color
 					});
 			int c = arr.getColor(0, -1);
 //			Log.d(TAG,
@@ -219,6 +258,13 @@ public class AndroidUtilsUI
 		return typedValue.data;
 	}
 
+	public static void setGroupEnabled(ViewGroup viewGroup, boolean enabled) {
+		for (int i = 0; i < viewGroup.getChildCount(); i++) {
+			View view = viewGroup.getChildAt(i);
+			view.setEnabled(enabled);
+		}
+	}
+
 	public static void setViewChecked(View child, boolean activate) {
 		if (child == null) {
 			return;
@@ -230,8 +276,7 @@ public class AndroidUtilsUI
 		}
 	}
 
-	public static boolean handleBrokenListViewScrolling(Activity a, int
-			keyCode) {
+	public static boolean handleBrokenListViewScrolling(Activity a, int keyCode) {
 		// Hack for FireTV 1st Gen (and possibly others):
 		// sometimes scrolling up/down stops being processed by ListView,
 		// even though there's more list to show.  Handle this manually
@@ -316,23 +361,25 @@ public class AndroidUtilsUI
 
 	public interface OnTextBoxDialogClick
 	{
+		@SuppressWarnings("UnusedParameters")
 		void onClick(DialogInterface dialog, int which, EditText editText);
 	}
 
-	public static AlertDialog createTextBoxDialog(Context context,
-			int newtag_title, int newtag_hint,
+	public static AlertDialog createTextBoxDialog(@NonNull Context context,
+			@StringRes int titleResID, @StringRes int hintResID,
 			final OnTextBoxDialogClick onClickListener) {
-		return createTextBoxDialog(context, newtag_title, newtag_hint, null,
+		return createTextBoxDialog(context, titleResID, hintResID, null,
 				EditorInfo.IME_ACTION_DONE, onClickListener);
 	}
 
-	public static AlertDialog createTextBoxDialog(Context context,
-			int newtag_title, int newtag_hint, String presetText,
-			final int imeOptions, final OnTextBoxDialogClick onClickListener) {
+	public static AlertDialog createTextBoxDialog(@NonNull Context context,
+			@StringRes int titleResID, @StringRes int hintResID,
+			@Nullable String presetText, final int imeOptions,
+			@NonNull final OnTextBoxDialogClick onClickListener) {
 		final AlertDialog.Builder builder = new AlertDialog.Builder(context);
 
 		final AlertDialog[] dialog = {
-				null
+			null
 		};
 
 		FrameLayout container = new FrameLayout(context);
@@ -347,24 +394,21 @@ public class AndroidUtilsUI
 
 		final MaterialEditText textView = AndroidUtilsUI.createFancyTextView(
 				context);
-		textView.setHint(newtag_hint);
-		textView.setFloatingLabelText(
-				context.getResources().getString(newtag_hint));
+		textView.setHint(hintResID);
+		textView.setFloatingLabelText(context.getResources().getString(hintResID));
 		textView.setSingleLine();
 		textView.setImeOptions(imeOptions);
-		textView.setOnEditorActionListener(new TextView.OnEditorActionListener()
-		{
+		textView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
 			@Override
 			public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
 				if (dialog[0] == null) {
 					return false;
 				}
-				if (actionId == imeOptions || (actionId == 0
+				if (actionId == imeOptions || (actionId == 0 && event != null
 						&& event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
 					// Won't work
 					//dialog[0].dismiss();
 					//dialog[0].cancel();
-
 
 					// From http://stackoverflow.com/a/38390615
 					dialog[0].getButton(DialogInterface.BUTTON_POSITIVE).performClick();
@@ -385,18 +429,16 @@ public class AndroidUtilsUI
 		}
 
 		builder.setView(container);
-		builder.setTitle(newtag_title);
+		builder.setTitle(titleResID);
 		builder.setPositiveButton(android.R.string.ok,
-				new DialogInterface.OnClickListener()
-				{
+				new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 						onClickListener.onClick(dialog, which, textView);
 					}
 				});
 		builder.setNegativeButton(android.R.string.cancel,
-				new DialogInterface.OnClickListener()
-				{
+				new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
 					}
@@ -406,6 +448,7 @@ public class AndroidUtilsUI
 		return dialog[0];
 	}
 
+	@Nullable
 	public static Fragment getFocusedFragment(FragmentActivity activity) {
 		View currentFocus = activity.getCurrentFocus();
 		if (currentFocus == null) {
@@ -415,8 +458,7 @@ public class AndroidUtilsUI
 		if (currentFocusParent == null) {
 			return null;
 		}
-		List<Fragment> fragments = activity.getSupportFragmentManager()
-				.getFragments();
+		List<Fragment> fragments = activity.getSupportFragmentManager().getFragments();
 		if (fragments == null) {
 			return null;
 		}
@@ -453,9 +495,7 @@ public class AndroidUtilsUI
 	}
 
 	public static boolean popupContextMenu(Context context,
-			ActionModeBeingReplacedListener l, String title) {
-		final android.support.v7.view.ActionMode.Callback actionModeCallback = l
-				.getActionModeCallback();
+			final Callback actionModeCallback, String title) {
 		if (actionModeCallback == null) {
 			return false;
 		}
@@ -480,8 +520,7 @@ public class AndroidUtilsUI
 
 		actionModeCallback.onPrepareActionMode(null, menuBuilder);
 
-		menuBuilder.setCallback(new MenuBuilder.Callback()
-		{
+		menuBuilder.setCallback(new MenuBuilder.Callback() {
 			@Override
 			public boolean onMenuItemSelected(MenuBuilder menu, MenuItem item) {
 				return actionModeCallback.onActionItemClicked(null, item);
@@ -500,7 +539,7 @@ public class AndroidUtilsUI
 	}
 
 	public static boolean popupContextMenu(final Activity activity,
-			String title) {
+			@Nullable String title) {
 		MenuBuilder menuBuilder = new MenuBuilder(activity);
 
 		if (title != null) {
@@ -521,8 +560,7 @@ public class AndroidUtilsUI
 
 		activity.onPrepareOptionsMenu(menuBuilder);
 
-		menuBuilder.setCallback(new MenuBuilder.Callback()
-		{
+		menuBuilder.setCallback(new MenuBuilder.Callback() {
 			@Override
 			public boolean onMenuItemSelected(MenuBuilder menu, MenuItem item) {
 				return activity.onOptionsItemSelected(item);
@@ -540,9 +578,8 @@ public class AndroidUtilsUI
 		return true;
 	}
 
-	public static void requestPermissions(Activity activity, String[]
-			permissions,
-			Runnable runnableOnGrant, Runnable runnableOnDeny) {
+	public static void requestPermissions(Activity activity, String[] permissions,
+			@Nullable Runnable runnableOnGrant, @Nullable Runnable runnableOnDeny) {
 
 		if (!(activity instanceof AppCompatActivityM)) {
 			Log.e(TAG,
@@ -584,8 +621,9 @@ public class AndroidUtilsUI
 
 	}
 
+	@SuppressLint("ParcelCreator")
 	public static final class UrlSpan2
-			extends URLSpan
+		extends URLSpan
 	{
 		public UrlSpan2(String url) {
 			super(url);
@@ -610,8 +648,7 @@ public class AndroidUtilsUI
 
 				if (badResolve) {
 					// toast
-					Toast.makeText(context, "Can't open " + uri,
-							Toast.LENGTH_LONG).show();
+					CustomToast.showText("Can't open " + uri, Toast.LENGTH_LONG);
 				} else {
 					context.startActivity(intent);
 				}
@@ -622,7 +659,7 @@ public class AndroidUtilsUI
 		}
 	}
 
-	public static boolean isChildOf(View child, ViewGroup vg) {
+	public static boolean isChildOf(@Nullable View child, ViewGroup vg) {
 		if (child == null || vg == null) {
 			return false;
 		}
@@ -666,6 +703,7 @@ public class AndroidUtilsUI
 				: Math.min(dm.widthPixels, dm.heightPixels));
 	}
 
+	@Nullable
 	public static Drawable getDrawableWithBounds(Context context, int resID) {
 		Drawable drawableCompat = AppCompatDrawableManager.get().getDrawable(
 				context, resID);
@@ -733,8 +771,8 @@ public class AndroidUtilsUI
 	/**
 	 * Creates an AlertDialog.Builder that has the proper theme for Gingerbread
 	 */
-	public static AndroidUtils.AlertDialogBuilder createAlertDialogBuilder(
-			Activity activity, int resource) {
+	public static AlertDialogBuilder createAlertDialogBuilder(Activity activity,
+			int resource) {
 		AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 
 		// Not sure if we need this anymore, but once upon a time, pre-honeycomb
@@ -746,7 +784,7 @@ public class AndroidUtilsUI
 		View view = View.inflate(activity, resource, null);
 		builder.setView(view);
 
-		return new AndroidUtils.AlertDialogBuilder(view, builder);
+		return new AlertDialogBuilder(view, builder);
 	}
 
 	public static void openSingleAlertDialog(Activity ownerActivity,
@@ -757,7 +795,7 @@ public class AndroidUtilsUI
 	@SuppressWarnings("ConstantConditions")
 	public static void openSingleAlertDialog(Activity ownerActivity,
 			AlertDialog.Builder builder,
-			final DialogInterface.OnDismissListener dismissListener) {
+			@Nullable final DialogInterface.OnDismissListener dismissListener) {
 		// We should always be on the UI Thread, so no need to synchronize
 		if (hasAlertDialogOpen) {
 			if (currentSingleDialog == null
@@ -786,8 +824,7 @@ public class AndroidUtilsUI
 
 			// Note: There's a builder.setOnDismissListener(), but it's API 17
 			currentSingleDialog.setOnDismissListener(
-					new DialogInterface.OnDismissListener()
-					{
+					new DialogInterface.OnDismissListener() {
 						@Override
 						public void onDismiss(DialogInterface dialog) {
 							hasAlertDialogOpen = false;
@@ -806,8 +843,8 @@ public class AndroidUtilsUI
 		}
 	}
 
-	public static void showConnectionError(Activity activity, Throwable t,
-			boolean allowContinue) {
+	public static void showConnectionError(Activity activity, String profileID,
+			Throwable t, boolean allowContinue) {
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "showConnectionError "
 					+ AndroidUtils.getCompressedStackTrace(t, 0, 9));
@@ -822,7 +859,7 @@ public class AndroidUtilsUI
 				Log.d(TAG, "showConnectionError Yup " + message);
 			}
 			if (message != null && message.contains("pair.vuze.com")) {
-				showConnectionError(activity, R.string.connerror_pairing,
+				showConnectionError(activity, profileID, R.string.connerror_pairing,
 						allowContinue);
 				return;
 			}
@@ -847,14 +884,23 @@ public class AndroidUtilsUI
 		showConnectionError(activity, message, allowContinue);
 	}
 
-	public static void showConnectionError(Activity activity, int errMsgID,
-			boolean allowContinue) {
+	public static void showConnectionError(Activity activity, String profileID,
+			int errMsgID, boolean allowContinue) {
+		if (activity == null) {
+			if (AndroidUtils.DEBUG) {
+				Log.w(TAG, "showConnectionError: no activity, can't show " + errMsgID);
+			}
+			if (!allowContinue) {
+				SessionManager.removeSession(profileID);
+			}
+			return;
+		}
 		String errMsg = activity.getResources().getString(errMsgID);
 		showConnectionError(activity, errMsg, allowContinue);
 	}
 
 	public static void showConnectionError(final Activity activity,
-			final String errMsg, final boolean allowContinue) {
+			final CharSequence errMsg, final boolean allowContinue) {
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "showConnectionError.string "
 					+ AndroidUtils.getCompressedStackTrace());
@@ -863,43 +909,53 @@ public class AndroidUtilsUI
 			Log.e(null, "No activity for error message " + errMsg);
 			return;
 		}
-		activity.runOnUiThread(new Runnable()
-		{
+		activity.runOnUiThread(new Runnable() {
 			public void run() {
 				if (activity.isFinishing()) {
 					if (AndroidUtils.DEBUG) {
-						System.out.println("can't display -- finishing");
+						Log.d(TAG, "can't display -- finishing " + activity);
 					}
 					return;
 				}
 				AlertDialog.Builder builder = new AlertDialog.Builder(
 						activity).setTitle(R.string.error_connecting).setMessage(
-						errMsg).setCancelable(true).setNegativeButton(
-						R.string.action_logout,
-						new DialogInterface.OnClickListener()
-						{
-							public void onClick(DialogInterface dialog, int which) {
-								if (activity.isTaskRoot()) {
-									RemoteUtils.openRemoteList(activity);
-								}
-								activity.finish();
-							}
-						}).setOnCancelListener(new DialogInterface.OnCancelListener() {
-					@Override
-					public void onCancel(DialogInterface dialog) {
-						if (allowContinue) {
-							return;
-						}
-						if (activity.isTaskRoot()) {
-							RemoteUtils.openRemoteList(activity);
-						}
-						activity.finish();
-					}
-				});
+								errMsg).setCancelable(true).setNegativeButton(
+										R.string.action_logout,
+										new DialogInterface.OnClickListener() {
+											public void onClick(DialogInterface dialog, int which) {
+												String remoteProfileID = SessionManager.findRemoteProfileID(
+														activity, TAG);
+												if (remoteProfileID == null) {
+													if (activity.isTaskRoot()) {
+														RemoteUtils.openRemoteList(activity);
+													}
+													activity.finish();
+												} else {
+													SessionManager.removeSession(remoteProfileID);
+												}
+											}
+										}).setOnCancelListener(
+												new DialogInterface.OnCancelListener() {
+													@Override
+													public void onCancel(DialogInterface dialog) {
+														if (allowContinue) {
+															return;
+														}
+														String remoteProfileID = SessionManager.findRemoteProfileID(
+																activity, TAG);
+														if (remoteProfileID == null) {
+															if (activity.isTaskRoot()) {
+																RemoteUtils.openRemoteList(activity);
+															}
+															activity.finish();
+														} else {
+															SessionManager.removeSession(remoteProfileID);
+														}
+													}
+												});
 				if (allowContinue) {
 					builder.setPositiveButton(R.string.button_continue,
-							new DialogInterface.OnClickListener()
-							{
+							new DialogInterface.OnClickListener() {
 								public void onClick(DialogInterface dialog, int which) {
 								}
 							});
@@ -918,22 +974,20 @@ public class AndroidUtilsUI
 
 	public static void showDialog(final Activity activity,
 			final CharSequence title, final CharSequence msg) {
-		activity.runOnUiThread(new Runnable()
-		{
+		activity.runOnUiThread(new Runnable() {
 			public void run() {
 				if (activity.isFinishing()) {
 					if (AndroidUtils.DEBUG) {
-						System.out.println("can't display -- finishing");
+						Log.w(TAG, "can't display -- finishing " + activity);
 					}
 					return;
 				}
 				AlertDialog.Builder builder = new AlertDialog.Builder(
 						activity).setMessage(msg).setCancelable(true).setNegativeButton(
-						android.R.string.ok, new DialogInterface.OnClickListener()
-						{
-							public void onClick(DialogInterface dialog, int which) {
-							}
-						});
+								android.R.string.ok, new DialogInterface.OnClickListener() {
+									public void onClick(DialogInterface dialog, int which) {
+									}
+								});
 				if (title != null) {
 					builder.setTitle(title);
 				}
@@ -949,12 +1003,11 @@ public class AndroidUtilsUI
 
 	public static void showFeatureRequiresVuze(final Activity activity,
 			final String feature) {
-		activity.runOnUiThread(new Runnable()
-		{
+		activity.runOnUiThread(new Runnable() {
 			public void run() {
 				if (activity.isFinishing()) {
 					if (AndroidUtils.DEBUG) {
-						System.out.println("can't display -- finishing");
+						Log.e(TAG, "can't display -- finishing " + activity);
 					}
 					return;
 				}
@@ -962,11 +1015,10 @@ public class AndroidUtilsUI
 						feature);
 				AlertDialog.Builder builder = new AlertDialog.Builder(
 						activity).setMessage(msg).setCancelable(true).setPositiveButton(
-						android.R.string.ok, new DialogInterface.OnClickListener()
-						{
-							public void onClick(DialogInterface dialog, int which) {
-							}
-						});
+								android.R.string.ok, new DialogInterface.OnClickListener() {
+									public void onClick(DialogInterface dialog, int which) {
+									}
+								});
 				builder.show();
 			}
 		});
@@ -992,8 +1044,7 @@ public class AndroidUtilsUI
 		if (activity == null) {
 			return;
 		}
-		activity.runOnUiThread(new Runnable()
-		{
+		activity.runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
 				Activity activity = fragment.getActivity();
@@ -1010,6 +1061,13 @@ public class AndroidUtilsUI
 
 	public static boolean showDialog(DialogFragment dlg, FragmentManager fm,
 			String tag) {
+		if (fm == null) {
+			if (AndroidUtils.DEBUG) {
+				Log.e(TAG,
+						"showDialog: fm null; " + AndroidUtils.getCompressedStackTrace());
+			}
+			return false;
+		}
 		try {
 			dlg.show(fm, tag);
 
@@ -1032,6 +1090,7 @@ public class AndroidUtilsUI
 
 			return true;
 		} catch (IllegalStateException e) {
+			e.printStackTrace();
 			// Activity is no longer active (ie. most likely paused)
 			return false;
 		}

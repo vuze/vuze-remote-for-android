@@ -17,23 +17,23 @@
 
 package com.vuze.android.remote.dialog;
 
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
+import com.vuze.android.remote.session.*;
+import com.vuze.util.Thunk;
+
 import android.app.AlertDialog.Builder;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.FragmentManager;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
-
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.AndroidUtils.AlertDialogBuilder;
 
 public class DialogFragmentSessionSettings
 	extends DialogFragmentBase
@@ -53,10 +53,6 @@ public class DialogFragmentSessionSettings
 
 	private CompoundButton chkRefresh;
 
-	private SessionInfo sessionInfo;
-
-	private RemoteProfile remoteProfile;
-
 	private CompoundButton chkUseSmalLists;
 
 	private CompoundButton chkRefreshMobile;
@@ -67,17 +63,19 @@ public class DialogFragmentSessionSettings
 
 	private CompoundButton chkShowOpenOptions;
 
+	private String remoteProfileID;
+
 	public static boolean openDialog(FragmentManager fm,
-			SessionInfo sessionInfo) {
-		if (sessionInfo == null || sessionInfo.getSessionSettings() == null) {
+			Session session) {
+		if (session == null || session.getSessionSettings() == null) {
 			return false;
 		}
 		DialogFragmentSessionSettings dlg = new DialogFragmentSessionSettings();
 		Bundle bundle = new Bundle();
-		String id = sessionInfo.getRemoteProfile().getID();
-		bundle.putString(SessionInfoManager.BUNDLE_KEY, id);
+		String id = session.getRemoteProfile().getID();
+		bundle.putString(SessionManager.BUNDLE_KEY, id);
 		dlg.setArguments(bundle);
-		AndroidUtilsUI.showDialog(dlg, fm, "SessionSettings");
+		AndroidUtilsUI.showDialog(dlg, fm, TAG);
 		return true;
 	}
 
@@ -86,21 +84,17 @@ public class DialogFragmentSessionSettings
 	public Dialog onCreateDialog(Bundle savedInstanceState) {
 		Bundle arguments = getArguments();
 
-		String id = arguments.getString(SessionInfoManager.BUNDLE_KEY);
+		remoteProfileID = arguments.getString(SessionManager.BUNDLE_KEY);
 		SessionSettings originalSettings;
-		if (id != null) {
-			sessionInfo = SessionInfoManager.getSessionInfo(id, getActivity());
-			if (sessionInfo == null) {
-				Log.e(null, "No session info for " + id);
-				throw new IllegalStateException("No session info for " + id);
-			}
-			originalSettings = sessionInfo.getSessionSettings();
-			if (originalSettings == null) {
-				throw new IllegalStateException("No session info settings");
-			}
-			remoteProfile = sessionInfo.getRemoteProfile();
-		} else {
+		if (remoteProfileID == null) {
 			throw new IllegalStateException("No session info");
+		}
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		RemoteProfile remoteProfile = session.getRemoteProfile();
+		originalSettings = session.getSessionSettings();
+		if (originalSettings == null) {
+			throw new IllegalStateException("No session info settings");
 		}
 
 		AlertDialogBuilder alertDialogBuilder = AndroidUtilsUI.createAlertDialogBuilder(
@@ -145,12 +139,12 @@ public class DialogFragmentSessionSettings
 			public void onCheckedChanged(CompoundButton buttonView,
 					boolean isChecked) {
 				ViewGroup viewGroup = (ViewGroup) view.findViewById(R.id.rp_ULArea);
-				setGroupEnabled(viewGroup, isChecked);
+				AndroidUtilsUI.setGroupEnabled(viewGroup, isChecked);
 			}
 		});
 		check = originalSettings.isULAuto();
 		viewGroup = (ViewGroup) view.findViewById(R.id.rp_ULArea);
-		setGroupEnabled(viewGroup, check);
+		AndroidUtilsUI.setGroupEnabled(viewGroup, check);
 		chkUL.setChecked(check);
 
 		chkDL = (CompoundButton) view.findViewById(R.id.rp_chkDL);
@@ -158,12 +152,12 @@ public class DialogFragmentSessionSettings
 			public void onCheckedChanged(CompoundButton buttonView,
 					boolean isChecked) {
 				ViewGroup viewGroup = (ViewGroup) view.findViewById(R.id.rp_DLArea);
-				setGroupEnabled(viewGroup, isChecked);
+				AndroidUtilsUI.setGroupEnabled(viewGroup, isChecked);
 			}
 		});
 		check = originalSettings.isDLAuto();
 		viewGroup = (ViewGroup) view.findViewById(R.id.rp_DLArea);
-		setGroupEnabled(viewGroup, check);
+		AndroidUtilsUI.setGroupEnabled(viewGroup, check);
 		chkDL.setChecked(check);
 
 		chkRefresh = (CompoundButton) view.findViewById(R.id.rp_chkRefresh);
@@ -172,12 +166,12 @@ public class DialogFragmentSessionSettings
 					boolean isChecked) {
 				ViewGroup viewGroup = (ViewGroup) view.findViewById(
 						R.id.rp_UpdateIntervalArea);
-				setGroupEnabled(viewGroup, isChecked);
+				AndroidUtilsUI.setGroupEnabled(viewGroup, isChecked);
 			}
 		});
 		check = remoteProfile.isUpdateIntervalEnabled();
 		viewGroup = (ViewGroup) view.findViewById(R.id.rp_UpdateIntervalArea);
-		setGroupEnabled(viewGroup, check);
+		AndroidUtilsUI.setGroupEnabled(viewGroup, check);
 		chkRefresh.setChecked(check);
 		if (check) {
 			chkRefresh.setText(R.string.rp_update_interval);
@@ -195,13 +189,13 @@ public class DialogFragmentSessionSettings
 							boolean isChecked) {
 						ViewGroup viewGroup = (ViewGroup) view.findViewById(
 								R.id.rp_RefreshMobileSeparateArea);
-						setGroupEnabled(viewGroup, isChecked);
+						AndroidUtilsUI.setGroupEnabled(viewGroup, isChecked);
 					}
 				});
 		check = remoteProfile.isUpdateIntervalMobileSeparate();
 		viewGroup = (ViewGroup) view.findViewById(
 				R.id.rp_RefreshMobileSeparateArea);
-		setGroupEnabled(viewGroup, check);
+		AndroidUtilsUI.setGroupEnabled(viewGroup, check);
 		chkRefreshMobileSeparate.setChecked(check);
 
 		chkRefreshMobile = (CompoundButton) view.findViewById(
@@ -211,13 +205,13 @@ public class DialogFragmentSessionSettings
 					boolean isChecked) {
 				ViewGroup viewGroup = (ViewGroup) view.findViewById(
 						R.id.rp_UpdateIntervalMobileArea);
-				setGroupEnabled(viewGroup, isChecked);
+				AndroidUtilsUI.setGroupEnabled(viewGroup, isChecked);
 			}
 		});
 		check = remoteProfile.isUpdateIntervalMobileEnabled()
 				&& remoteProfile.isUpdateIntervalMobileSeparate();
 		viewGroup = (ViewGroup) view.findViewById(R.id.rp_UpdateIntervalMobileArea);
-		setGroupEnabled(viewGroup, check);
+		AndroidUtilsUI.setGroupEnabled(viewGroup, check);
 		chkRefreshMobile.setChecked(check);
 		if (check) {
 			chkRefreshMobile.setText(R.string.rp_update_interval_mobile);
@@ -238,32 +232,29 @@ public class DialogFragmentSessionSettings
 		return builder.create();
 	}
 
-	public void setGroupEnabled(ViewGroup viewGroup, boolean enabled) {
-		for (int i = 0; i < viewGroup.getChildCount(); i++) {
-			View view = viewGroup.getChildAt(i);
-			view.setEnabled(enabled);
-		}
-	}
-
-	protected void saveAndClose() {
+	@Thunk
+	void saveAndClose() {
 		SessionSettings newSettings = new SessionSettings();
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		RemoteProfile remoteProfile = session.getRemoteProfile();
 		remoteProfile.setUpdateIntervalEnabled(chkRefresh.isChecked());
 		remoteProfile.setUpdateIntervalEnabledSeparate(
 				chkRefreshMobileSeparate.isChecked());
 		remoteProfile.setUpdateIntervalMobileEnabled(chkRefreshMobile.isChecked());
 		newSettings.setULIsAuto(chkUL.isChecked());
 		newSettings.setDLIsAuto(chkDL.isChecked());
-		newSettings.setDlSpeed(parseLong(textDL.getText().toString()));
-		newSettings.setUlSpeed(parseLong(textUL.getText().toString()));
+		newSettings.setDlSpeed(AndroidUtils.parseLong(textDL.getText().toString()));
+		newSettings.setUlSpeed(AndroidUtils.parseLong(textUL.getText().toString()));
 		try {
 			remoteProfile.setUpdateInterval(
-					parseLong(textRefresh.getText().toString()));
+					AndroidUtils.parseLong(textRefresh.getText().toString()));
 		} catch (Throwable t) {
 			// lazy
 		}
 		try {
 			remoteProfile.setUpdateIntervalMobile(
-					parseLong(textRefreshMobile.getText().toString()));
+					AndroidUtils.parseLong(textRefreshMobile.getText().toString()));
 		} catch (Throwable t) {
 			// lazy
 		}
@@ -271,15 +262,7 @@ public class DialogFragmentSessionSettings
 		remoteProfile.setUseSmallLists(chkUseSmalLists.isChecked());
 		remoteProfile.setAddTorrentSilently(!chkShowOpenOptions.isChecked());
 
-		sessionInfo.updateSessionSettings(newSettings);
-	}
-
-	long parseLong(String s) {
-		try {
-			return Long.parseLong(s);
-		} catch (Exception ignore) {
-		}
-		return 0;
+		session.updateSessionSettings(newSettings);
 	}
 
 	@Override

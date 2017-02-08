@@ -74,7 +74,7 @@
 		<item name="fg_tag_type_manualtag">@color/fg_tag_type_manualtag</item>
 		<item name="ringdots">@color/light_ringdots</item>
 
-		<item name="pager_bg">?attr/colorPrimary</item>
+		<item name="pager_bg">@color/pager_bg</item>
 		<item name="pager_fg">@color/pager_fg</item>
 
 		<item name="statusbar_bg1">@color/light_statusbar_bg1</item>
@@ -83,14 +83,14 @@
 		<item name="drawable_statusbar">@drawable/status_bar_bg</item>
 		<item name="drawable_progress_ring">@drawable/progress_ring</item>
 		<item name="drawable_listselector">@drawable/list_selector</item>
-		<item name="btn_toggle_notoggleitem">@drawable/btn_toggle_notoggleitem
-		</item>
 
 		<item name="met_primary_color">@color/light_met_primary_color</item>
 
 		<item name="pstsTabBackground">@drawable/tab_selector</item>
-		<item name="pstsTabTextColor">@color/pager_fg</item>
-		<item name="pstsIndicatorColor">@color/light_primaryColor</item>
+		<item name="pstsTabTextColor">@drawable/tab_selector_fg</item>
+		<item name="pstsIndicatorColor">@color/pager_fg</item>
+
+		<item name="fastScrollThumbColor">@color/light_colorAccent</item>
 
 		<!-- All customizations that are NOT specific to a particular API-level can go here. -->
 		<item name="windowActionBar">false</item>
@@ -166,12 +166,12 @@
 		<item name="bg_tag_type_manualtag">#40ff0000</item>
 		<item name="fg_tag_type_0">#aaa</item>
 		<item name="fg_tag_type_cat">#aaa</item>
-		<item name="fg_tag_type_2">#aaa</item>
+		<item name="fg_tag_type_2">#eee</item>
 		<item name="fg_tag_type_manualtag">#aaa</item>
 		<item name="ringdots">#A0003050</item>
 
-		<item name="pager_bg">#155060</item>
-		<item name="pager_fg">#aaa</item>
+		<item name="pager_bg">@color/pager_bg</item>
+		<item name="pager_fg">@color/pager_fg</item>
 
 		<item name="statusbar_bg1">@color/dark_statusbar_bg1</item>
 		<item name="statusbar_bg2">@color/dark_statusbar_bg2</item>
@@ -181,11 +181,6 @@
 		<item name="drawable_statusbar">@drawable/status_bar_bg_dark</item>
 		<item name="drawable_listselector">@drawable/list_selector_dark</item>
 		<item name="drawable_progress_ring">@drawable/progress_ring_dark</item>
-
-		<item name="btn_toggle_notoggleitem">
-			@drawable/btn_toggle_notoggleitem_dark
-		</item>
-
 
 		<!-- All customizations that are NOT specific to a particular API-level can go here. -->
 		<item name="windowActionBar">false</item>
@@ -200,7 +195,7 @@
 
 		<item name="pstsTabBackground">@drawable/tab_selector</item>
 		<item name="pstsIndicatorColor">@color/pager_fg</item>
-		<item name="pstsTabTextColor">@color/pager_fg</item>
+		<item name="pstsTabTextColor">@drawable/tab_selector_fg</item>
 
 		<item name="sidelist_header_bg">@color/dark_sidelist_header_bg</item>
 		<item name="sidelist_header_bg_focused">@color/dark_sidelist_header_bg_focused</item>
@@ -239,7 +234,7 @@
 		<item name="android:layout_width">fill_parent</item>
 		<item name="android:layout_height">wrap_content</item>
 		<item name="android:minHeight">42dp</item>
-		<item name="android:layout_marginBottom">1dp</item>
+		<item name="android:layout_marginBottom">0dp</item>
 		<item name="android:paddingLeft">@dimen/sidelist_padding_x</item>
 		<item name="android:background">?sidelist_header_selector</item>
 		<item name="android:focusable">true</item>
@@ -312,6 +307,48 @@
 		<item name="android:gravity">fill_vertical</item>
 		<item name="android:orientation">vertical</item>
 		<item name="android:paddingBottom">@dimen/sidelist_padding_bottom</item>
-		<item name="android:paddingTop">1dp</item>
+	</style>
+
+	<style name="tv_header_text">
+		<item name="android:layout_width">wrap_content</item>
+		<item name="android:layout_height">63dp</item>
+		<item name="android:paddingBottom">16dp</item>
+		<item name="android:paddingLeft">16dp</item>
+		<item name="android:textSize">36sp</item>
+		<item name="android:maxLines">1</item>
+		<item name="android:layout_gravity">right</item>
+
+		<item name="android:ellipsize">end</item>
+		<!--<item name="android:background">@drawable/tv_header_bg</item>-->
+		<!--<item name="android:background">@drawable/tv_header_end</item>-->
+		<!--<item name="android:textColor">#40FFFFFF</item>-->
+	</style>
+
+	<style name="tv_header_image">
+		<item name="android:layout_width">90dp</item>
+		<item name="android:layout_height">90dp</item>
+		<item name="android:layout_gravity">right</item>
+		<item name="android:layout_marginRight">16dp</item>
+		<item name="android:paddingTop">12dp</item>
+		<item name="android:tint">#000</item>
+	</style>
+
+
+	<style name="tint_textColorPrimary">
+	</style>
+
+	<style name="unread_button">
+		<item name="android:layout_width">wrap_content</item>
+		<item name="android:layout_height">wrap_content</item>
+		<item name="android:layout_margin">8dp</item>
+		<item name="android:background">@drawable/button_blue</item>
+		<item name="android:minHeight">0dp</item>
+		<item name="android:minWidth">0dp</item>
+		<item name="android:paddingLeft">8dp</item>
+		<item name="android:paddingRight">8dp</item>
+		<item name="android:textColor">#fff</item>
+	</style>
+
+	<style name="MyDatePicker">
 	</style>
 </resources>

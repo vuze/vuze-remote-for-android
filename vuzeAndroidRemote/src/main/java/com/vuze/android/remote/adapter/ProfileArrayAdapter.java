@@ -18,7 +18,12 @@ package com.vuze.android.remote.adapter;
 
 import java.util.Comparator;
 
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.session.RemoteProfile;
+import com.vuze.util.Thunk;
+
 import android.content.Context;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -29,8 +34,6 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.vuze.android.remote.*;
-
 /**
  * Profile List adapter for {IntentHandler}
  */
@@ -38,7 +41,8 @@ public class ProfileArrayAdapter
 	extends ArrayAdapter<RemoteProfile>
 {
 
-	/* @Thunk */ Context context;
+	@Thunk
+	Context context;
 
 	public ProfileArrayAdapter(Context context) {
 		super(context, R.layout.row_profile_selector);
@@ -61,18 +65,23 @@ public class ProfileArrayAdapter
 		notifyDataSetChanged();
 	}
 
+	@NonNull
 	@Override
-	public View getView(int position, View convertView, ViewGroup parent) {
-		LayoutInflater inflater = (LayoutInflater) context.getSystemService(
-				Context.LAYOUT_INFLATER_SERVICE);
-		View rowView = inflater.inflate(R.layout.row_profile_selector, parent,
-				false);
+	public View getView(int position, View rowView, @NonNull ViewGroup parent) {
+		if (rowView == null) {
+			LayoutInflater inflater = (LayoutInflater) context.getSystemService(
+					Context.LAYOUT_INFLATER_SERVICE);
+			rowView = inflater.inflate(R.layout.row_profile_selector, parent, false);
+		}
 		TextView tvNick = (TextView) rowView.findViewById(R.id.profilerow_alias);
 		TextView tvSince = (TextView) rowView.findViewById(R.id.profilerow_since);
 		ImageButton ibEdit = (ImageButton) rowView.findViewById(
 				R.id.profilerow_edit);
 
 		final RemoteProfile profile = getItem(position);
+		if (profile == null) {
+			return rowView;
+		}
 		tvNick.setText(profile.getNick());
 		long lastUsedOn = profile.getLastUsedOn();
 		if (lastUsedOn == 0) {

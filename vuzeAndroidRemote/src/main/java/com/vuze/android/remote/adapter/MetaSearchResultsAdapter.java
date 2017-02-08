@@ -16,25 +16,26 @@
 
 package com.vuze.android.remote.adapter;
 
-import android.content.Context;
-import android.content.res.Resources;
-import android.os.Bundle;
-import android.support.v7.widget.RecyclerView;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.*;
+import java.util.*;
 
 import com.vuze.android.FlexibleRecyclerAdapter;
 import com.vuze.android.FlexibleRecyclerSelectionListener;
 import com.vuze.android.FlexibleRecyclerViewHolder;
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.spanbubbles.SpanTags;
-import com.vuze.util.DisplayFormatters;
-import com.vuze.util.MapUtils;
+import com.vuze.util.*;
 
-import java.util.*;
+import android.content.Context;
+import android.content.res.Resources;
+import android.os.Bundle;
+import android.support.annotation.LayoutRes;
+import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.RecyclerView.ViewHolder;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.*;
 
 /**
  * Results Adapter for MetaSearch
@@ -46,11 +47,11 @@ public class MetaSearchResultsAdapter
 	FlexibleRecyclerAdapter<MetaSearchResultsAdapter.MetaSearchViewResultsHolder, String>
 	implements Filterable, AdapterFilterTalkbalk<String>
 {
-	static final String TAG = "MetaSearchResultAdapter";
+	private static final String TAG = "MetaSearchResultAdapter";
 
 	private static final boolean DEBUG = AndroidUtils.DEBUG;
 
-	public final Object mLock = new Object();
+	private final Object mLock = new Object();
 
 	class MetaSearchViewResultsHolder
 		extends FlexibleRecyclerViewHolder
@@ -70,6 +71,8 @@ public class MetaSearchResultsAdapter
 
 		final ImageButton ibDownload;
 
+		final Button btnNew;
+
 		public MetaSearchViewResultsHolder(RecyclerSelectorInternal selector,
 				View rowView) {
 			super(selector, rowView);
@@ -80,6 +83,10 @@ public class MetaSearchResultsAdapter
 			tvTags = (TextView) rowView.findViewById(R.id.ms_result_tags);
 			tvTime = (TextView) rowView.findViewById(R.id.ms_result_time);
 			tvSize = (TextView) rowView.findViewById(R.id.ms_result_size);
+			btnNew = (Button) rowView.findViewById(R.id.ms_new);
+			if (btnNew != null) {
+				btnNew.setOnClickListener(onNewClickedListener);
+			}
 			ibDownload = (ImageButton) rowView.findViewById(R.id.ms_result_dl_button);
 			if (ibDownload != null) {
 				ibDownload.setOnClickListener(onDownloadClickedListener);
@@ -99,20 +106,33 @@ public class MetaSearchResultsAdapter
 				String engineID);
 
 		void downloadResult(String id);
+
+		void newButtonClicked(String id, boolean currentlyNew);
 	}
 
-	/* @Thunk */ final Context context;
+	@Thunk
+	final Context context;
 
-	/* @Thunk */ final MetaSearchSelectionListener rs;
+	@Thunk
+	final MetaSearchSelectionListener rs;
 
 	private final ComparatorMapFields sorter;
 
-	/* @Thunk */ final View.OnClickListener onDownloadClickedListener;
+	@Thunk
+	final View.OnClickListener onDownloadClickedListener;
+
+	@Thunk
+	final View.OnClickListener onNewClickedListener;
+
+	private final int rowLayoutRes;
+
+	private final int rowLayoutRes_dpad;
 
 	private MetaSearchResultsAdapterFilter filter;
 
 	public MetaSearchResultsAdapter(Context context,
-			final MetaSearchSelectionListener rs) {
+			final MetaSearchSelectionListener rs, @LayoutRes int rowLayoutRes,
+			@LayoutRes int rowLayoutRes_DPAD) {
 		super(rs);
 		this.context = context;
 		this.rs = rs;
@@ -120,8 +140,7 @@ public class MetaSearchResultsAdapter
 		onDownloadClickedListener = new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				RecyclerView.ViewHolder viewHolder = getRecyclerView().findContainingViewHolder(
-						v);
+				ViewHolder viewHolder = getRecyclerView().findContainingViewHolder(v);
 
 				if (viewHolder == null) {
 					return;
@@ -132,6 +151,22 @@ public class MetaSearchResultsAdapter
 				rs.downloadResult(id);
 			}
 		};
+		onNewClickedListener = new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				ViewHolder viewHolder = getRecyclerView().findContainingViewHolder(v);
+
+				if (viewHolder == null) {
+					return;
+				}
+				int position = viewHolder.getAdapterPosition();
+				String id = getItem(position);
+
+				rs.newButtonClicked(id, v.getVisibility() != View.GONE);
+			}
+		};
+		this.rowLayoutRes = rowLayoutRes;
+		rowLayoutRes_dpad = rowLayoutRes_DPAD;
 
 		sorter = new ComparatorMapFields() {
 
@@ -227,13 +262,20 @@ public class MetaSearchResultsAdapter
 		double rank = MapUtils.parseMapDouble(map,
 				TransmissionVars.FIELD_SEARCHRESULT_RANK, 0);
 		holder.pbRank.setProgress((int) (rank * 1000));
+
+		if (holder.btnNew != null) {
+			holder.btnNew.setVisibility(MapUtils.getMapBoolean(map,
+					TransmissionVars.FIELD_SUBSCRIPTION_RESULT_ISREAD, true)
+							? View.INVISIBLE : View.VISIBLE);
+		}
 	}
 
 	private String buildPublishDateLine(Resources res, Map map) {
 		String s;
 
 		MetaSearchEnginesAdapter.MetaSearchEnginesInfo engineInfo = rs.getSearchEngineMap(
-				MapUtils.getMapString(map, "engine-id", null));
+				MapUtils.getMapString(map,
+						TransmissionVars.FIELD_SEARCHRESULT_ENGINE_ID, null));
 
 		long publishedOn = MapUtils.parseMapLong(map,
 				TransmissionVars.FIELD_SEARCHRESULT_PUBLISHDATE, 0);
@@ -242,6 +284,9 @@ public class MetaSearchResultsAdapter
 		} else {
 			long diff = System.currentTimeMillis() - publishedOn;
 			s = DisplayFormatters.prettyFormatTimeDiff(res, diff / 1000);
+		}
+		if (engineInfo == null) {
+			return s;
 		}
 		return res.getString(R.string.ms_result_row_age, s, engineInfo.name);
 	}
@@ -253,8 +298,9 @@ public class MetaSearchResultsAdapter
 		LayoutInflater inflater = (LayoutInflater) context.getSystemService(
 				Context.LAYOUT_INFLATER_SERVICE);
 
-		View rowView = inflater.inflate(AndroidUtils.usesNavigationControl()
-				? R.layout.row_ms_result_dpad : R.layout.row_ms_result, parent, false);
+		View rowView = inflater.inflate(
+				AndroidUtils.usesNavigationControl() ? rowLayoutRes_dpad : rowLayoutRes,
+				parent, false);
 
 		return new MetaSearchViewResultsHolder(this, rowView);
 	}
@@ -302,7 +348,7 @@ public class MetaSearchResultsAdapter
 		doSort();
 	}
 
-	public void doSort() {
+	private void doSort() {
 		if (!sorter.isValid()) {
 			if (DEBUG) {
 				Log.d(TAG, "doSort skipped: no comparator and no sort");

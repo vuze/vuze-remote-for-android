@@ -21,6 +21,7 @@ import java.util.*;
 import com.vuze.android.remote.AndroidUtils;
 import com.vuze.android.remote.FilterConstants;
 
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Filter;
 
@@ -88,9 +89,10 @@ public abstract class LetterFilter<T>
 		return constraint;
 	}
 
-	public boolean constraintCheck(CharSequence constraint, T key,
-			HashSet<String> setLetters, String charAfter, boolean compactDigits,
-			boolean compactNonLetters, boolean compactPunctuation) {
+	private boolean constraintCheck(CharSequence constraint, T key,
+			@Nullable HashSet<String> setLetters, String charAfter,
+			boolean compactDigits, boolean compactNonLetters,
+			boolean compactPunctuation) {
 		if (setLetters == null
 				&& (constraint == null || constraint.length() == 0)) {
 			return true;
@@ -179,18 +181,18 @@ public abstract class LetterFilter<T>
 		this.constraint = _constraint == null ? null
 				: _constraint.toString().toUpperCase(Locale.US);
 
-		boolean hasConstraint = buildLetters
-				|| (constraint != null && constraint.length() > 0);
+		boolean hasConstraint = constraint != null && constraint.length() > 0;
 
 		int size = searchResultList.size();
 
 		if (DEBUG) {
-			Log.d(TAG, "performFiltering: size=" + size + "/hasConstraint? "
-					+ hasConstraint);
+			Log.d(TAG,
+					"performFiltering: size=" + size + (hasConstraint ? "; has" : "; no")
+							+ " Constraint; buildLetters? " + buildLetters);
 		}
 
-		if (size > 0 && hasConstraint) {
-			if (DEBUG) {
+		if (size > 0 && (buildLetters || hasConstraint)) {
+			if (DEBUG && hasConstraint) {
 				Log.d(TAG, "filtering " + searchResultList.size());
 			}
 
@@ -232,13 +234,13 @@ public abstract class LetterFilter<T>
 				lettersUpdated(mapLetterCount);
 			}
 
-			if (DEBUG) {
+			if (DEBUG && hasConstraint) {
 				Log.d(TAG, "text filtered to " + size);
 			}
 		}
 	}
 
 	protected abstract void lettersUpdated(
-			HashMap<String, Integer> mapLetterCount);
+			@Nullable HashMap<String, Integer> mapLetterCount);
 
 }

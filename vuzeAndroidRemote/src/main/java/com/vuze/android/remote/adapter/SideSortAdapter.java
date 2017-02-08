@@ -16,19 +16,20 @@
 
 package com.vuze.android.remote.adapter;
 
+import com.vuze.android.FlexibleRecyclerAdapter;
+import com.vuze.android.FlexibleRecyclerSelectionListener;
+import com.vuze.android.FlexibleRecyclerViewHolder;
+import com.vuze.android.remote.AndroidUtils;
+import com.vuze.android.remote.R;
+
 import android.content.Context;
+import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-import com.vuze.android.FlexibleRecyclerAdapter;
-import com.vuze.android.FlexibleRecyclerSelectionListener;
-import com.vuze.android.FlexibleRecyclerViewHolder;
-import com.vuze.android.remote.AndroidUtils;
-import com.vuze.android.remote.R;
 
 /**
  * Created by TuxPaper on 2/13/16.
@@ -51,16 +52,20 @@ public class SideSortAdapter
 	public static final class SideSortInfo
 		implements Comparable<SideSortInfo>
 	{
-		public String name;
+		public final String name;
 
-		public long id;
+		public final long id;
 
-		public boolean flipArrow;
+		public final @DrawableRes int resAscending;
 
-		public SideSortInfo(long id, String sortName, boolean flipArrow) {
+		public final @DrawableRes int resDescending;
+
+		public SideSortInfo(long id, String sortName, @DrawableRes int resAscending,
+				@DrawableRes int resDescending) {
 			this.id = id;
 			name = sortName;
-			this.flipArrow = flipArrow;
+			this.resAscending = resAscending;
+			this.resDescending = resDescending;
 		}
 
 		@Override
@@ -105,9 +110,7 @@ public class SideSortAdapter
 				isSmall ? R.layout.row_sidesort_small : R.layout.row_sidesort, parent,
 				false);
 
-		SideSortHolder vh = new SideSortHolder(this, rowView);
-
-		return vh;
+		return new SideSortHolder(this, rowView);
 	}
 
 	@Override
@@ -118,15 +121,16 @@ public class SideSortAdapter
 		int sortImageID;
 		String contentDescription;
 		if (currentSortID == item.id) {
-			boolean adjustedSortOrder = item.flipArrow ? !currentSortOrderAsc : currentSortOrderAsc;
-			if (adjustedSortOrder) {
-				sortImageID = R.drawable.ic_arrow_upward_white_24dp;
-				contentDescription = context.getResources().getString(R.string.spoken_sorted_ascending);
+			if (currentSortOrderAsc) {
+				sortImageID = item.resAscending;
+				contentDescription = context.getResources().getString(
+						R.string.spoken_sorted_ascending);
 			} else {
-				sortImageID = R.drawable.ic_arrow_downward_white_24dp;
-				contentDescription = context.getResources().getString(R.string.spoken_sorted_descending);
+				sortImageID = item.resDescending;
+				contentDescription = context.getResources().getString(
+						R.string.spoken_sorted_descending);
 			}
-			holder.iv.setScaleType(adjustedSortOrder ? ImageView.ScaleType.FIT_START
+			holder.iv.setScaleType(currentSortOrderAsc ? ImageView.ScaleType.FIT_START
 					: ImageView.ScaleType.FIT_END);
 		} else {
 			sortImageID = 0;

@@ -16,29 +16,30 @@
 
 package com.vuze.android.remote;
 
-import android.content.Context;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionSettings;
 import com.vuze.util.MapUtils;
+
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 
 public class TorrentUtils
 {
-
-	private static SortByFields[] sortByFields;
-
-	public static String getSaveLocation(SessionInfo sessionInfo,
+	@NonNull
+	public static String getSaveLocation(Session session,
 			Map<?, ?> mapTorrent) {
 		String saveLocation = MapUtils.getMapString(mapTorrent,
 				TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR, null);
 
 		if (saveLocation == null) {
-			if (sessionInfo == null) {
+			if (session == null) {
 				saveLocation = "dunno";
 			} else {
-				SessionSettings sessionSettings = sessionInfo.getSessionSettings();
+				SessionSettings sessionSettings = session.getSessionSettings();
 				if (sessionSettings == null) {
 					saveLocation = "";
 				} else {
@@ -75,11 +76,11 @@ public class TorrentUtils
 			}
 		}
 
-		return saveLocation == null ? "" : saveLocation;
+		return saveLocation;
 	}
 
-	public static int findSordIdFromTorrentFields(Context context,
-			String[] fields, SortByFields[] sortByFields) {
+	public static int findSordIdFromTorrentFields(String[] fields,
+			SortByFields[] sortByFields) {
 		for (int i = 0; i < sortByFields.length; i++) {
 			if (Arrays.equals(sortByFields[i].sortFieldIDs, fields)) {
 				return i;
@@ -88,12 +89,12 @@ public class TorrentUtils
 		return -1;
 	}
 
-	public static boolean isAllowRefresh(SessionInfo sessionInfo) {
-		if (sessionInfo == null) {
+	public static boolean isAllowRefresh(@Nullable Session session) {
+		if (session == null) {
 			return false;
 		}
 		boolean refreshVisible = false;
-		long calcUpdateInterval = sessionInfo.getRemoteProfile().calcUpdateInterval();
+		long calcUpdateInterval = session.getRemoteProfile().calcUpdateInterval();
 		if (calcUpdateInterval >= 45 || calcUpdateInterval == 0) {
 			refreshVisible = true;
 		}
@@ -108,8 +109,6 @@ public class TorrentUtils
 				TransmissionVars.FIELD_TORRENT_FILE_COUNT, 0);
 		//long size = MapUtils.getMapLong(mapTorrent, "sizeWhenDone", 0); // 16384
 		String torrentName = MapUtils.getMapString(mapTorrent, "name", " ");
-		boolean isMagnetDownload = torrentName.startsWith("Magnet download for ")
-				&& fileCount == 0;
-		return isMagnetDownload;
+		return torrentName.startsWith("Magnet download for ") && fileCount == 0;
 	}
 }

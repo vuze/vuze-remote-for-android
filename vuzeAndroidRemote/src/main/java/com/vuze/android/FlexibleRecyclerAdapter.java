@@ -24,17 +24,22 @@ import java.util.*;
 
 import com.vuze.android.remote.AndroidUtils;
 import com.vuze.android.remote.AndroidUtilsUI;
+import com.vuze.android.remote.R;
+import com.vuze.util.Thunk;
 
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
-import android.widget.ViewSwitcher;
 
 /**
  * This adapter requires only having one RecyclerView attached to it.
@@ -51,10 +56,18 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 
 	public static final int NO_CHECK_ON_SELECTED = -1;
 
-	/* @Thunk */ final Object mLock = new Object();
+	private static final String KEY_SUFFIX_CHECKED = ".checked";
+
+	private static final String KEY_SUFFIX_SEL_POS = ".selPos";
+
+	private static final String KEY_SUFFIX_FIRST_POS = ".firstPos";
+
+	@Thunk
+	final Object mLock = new Object();
 
 	/** List of they keys of all entries displayed, in the display order */
-	/* @Thunk */ List<T> mItems = new ArrayList<>();
+	@Thunk
+	List<T> mItems = new ArrayList<>();
 
 	private int selectedPosition = -1;
 
@@ -68,17 +81,24 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 
 	private int checkOnSelectedAfterMS = NO_CHECK_ON_SELECTED;
 
-	/* @Thunk */ Runnable runnableDelayedCheck;
+	@Thunk
+	Runnable runnableDelayedCheck;
 
-	/* @Thunk */ RecyclerView recyclerView;
+	@Thunk
+	RecyclerView recyclerView;
 
 	private boolean mAllowMultiSelectMode = true;
 
 	private boolean mAlwaysMultiSelectMode = false;
 
-	/* @Thunk */ View emptyView;
+	@Thunk
+	View emptyView;
 
 	private RecyclerView.AdapterDataObserver observer;
+
+	private View initialView;
+
+	private boolean neverSetItems = true;
 
 	public FlexibleRecyclerAdapter() {
 		super();
@@ -117,6 +137,10 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 			log("setItems: invalidate all (" + count + ")");
 		}
 		notifyItemRangeChanged(0, count);
+		if (count == 0) {
+			neverSetItems = false;
+			checkEmpty();
+		}
 	}
 
 	/**
@@ -136,7 +160,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		return new ArrayList<>(checkedItems);
 	}
 
-	private void setCheckedPositions(int[] positions) {
+	private void setCheckedPositions(@Nullable int[] positions) {
 		// TODO: notify before clearing
 		checkedItems.clear();
 		if (positions == null || positions.length == 0) {
@@ -156,12 +180,12 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 	 * @param outState Current state
 	 */
 	public void onSaveInstanceState(Bundle outState) {
-		outState.putIntArray(TAG + ".checked", getCheckedItemPositions());
-		outState.putInt(TAG + ".selPos", selectedPosition);
+		outState.putIntArray(TAG + KEY_SUFFIX_CHECKED, getCheckedItemPositions());
+		outState.putInt(TAG + KEY_SUFFIX_SEL_POS, selectedPosition);
 		if (recyclerView instanceof FlexibleRecyclerView) {
 			int pos = ((FlexibleRecyclerView) recyclerView).findFirstVisibleItemPosition();
 			if (pos >= 0) {
-				outState.putInt(TAG + ".firstPos", pos);
+				outState.putInt(TAG + KEY_SUFFIX_FIRST_POS, pos);
 			}
 		}
 	}
@@ -176,9 +200,10 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		if (savedInstanceState == null) {
 			return;
 		}
-		int[] checkedPositions = savedInstanceState.getIntArray(TAG + ".checked");
+		int[] checkedPositions = savedInstanceState.getIntArray(
+				TAG + KEY_SUFFIX_CHECKED);
 		setCheckedPositions(checkedPositions);
-		selectedPosition = savedInstanceState.getInt(TAG + ".selPos", -1);
+		selectedPosition = savedInstanceState.getInt(TAG + KEY_SUFFIX_SEL_POS, -1);
 		if (selectedPosition >= 0) {
 			if (AndroidUtils.DEBUG_ADAPTER) {
 				Log.d(TAG, "onRestoreInstanceState: scroll to #" + selectedPosition);
@@ -186,7 +211,8 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 			selectedItem = getItem(selectedPosition);
 			rv.scrollToPosition(selectedPosition);
 		} else {
-			int firstPosition = savedInstanceState.getInt(TAG + ".firstPos", -1);
+			int firstPosition = savedInstanceState.getInt(TAG + KEY_SUFFIX_FIRST_POS,
+					-1);
 			if (AndroidUtils.DEBUG_ADAPTER) {
 				Log.d(TAG,
 						"onRestoreInstanceState: scroll to first, #" + firstPosition);
@@ -260,8 +286,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 	@Override
 	public final VH onCreateViewHolder(ViewGroup parent, int viewType) {
 		//log("onCreateViewHolder: " + (++countC));
-		VH vh = onCreateFlexibleViewHolder(parent, viewType);
-		return vh;
+		return onCreateFlexibleViewHolder(parent, viewType);
 	}
 
 	@Override
@@ -333,6 +358,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		return getItemCount() == 0;
 	}
 
+	@SuppressWarnings("WeakerAccess")
 	public void updateItem(final int position, final T item) {
 		if (!AndroidUtilsUI.isUIThread()) {
 			new Handler(Looper.getMainLooper()).post(new Runnable() {
@@ -390,6 +416,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 	 * @param position Position of the item to add
 	 * @param item     The item to add
 	 */
+	@SuppressWarnings("WeakerAccess")
 	public void addItem(int position, final T item) {
 		if (!AndroidUtilsUI.isUIThread()) {
 			final int finalPosition = position;
@@ -428,6 +455,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		notifyItemInserted(position);
 	}
 
+	@SuppressWarnings("WeakerAccess")
 	public void removeItem(final int position) {
 		if (position < 0) {
 			return;
@@ -512,6 +540,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 	}
 
 	public void setItems(final List<T> items) {
+		neverSetItems = false;
 		if (!AndroidUtilsUI.isUIThread()) {
 			if (AndroidUtils.DEBUG_ADAPTER) {
 				log("setItems: delay " + recyclerView);
@@ -525,7 +554,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 			return;
 		}
 
-		List<T> notifyUncheckedList = new ArrayList<>();
+		List<T> notifyUncheckedList;
 		int oldCount;
 		int newCount;
 		synchronized (mLock) {
@@ -617,6 +646,10 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 	public void sortItems(final Comparator<Object> sorter) {
 		if (AndroidUtils.DEBUG_ADAPTER) {
 			log("sortItems");
+		}
+
+		if (getItemCount() == 0) {
+			return;
 		}
 
 		new Thread(new Runnable() {
@@ -713,6 +746,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		return true;
 	}
 
+	@SuppressWarnings("WeakerAccess")
 	public boolean isItemSelected(int position) {
 		return position != -1 && position == selectedPosition;
 	}
@@ -736,7 +770,7 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 			}
 
 			boolean isChecked = isItemChecked(position);
-			if (isMultiCheckMode() || isChecked) {
+			if (mIsMultiSelectMode || isChecked) {
 				// Multiselect: We don't want to auto-check when focus changes
 				// Already checked? If we aren't multimode, then something has already
 				// done our job (such as a tap)
@@ -1013,7 +1047,8 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		return mAllowMultiSelectMode;
 	}
 
-	/* @Thunk */ void log(String s) {
+	@Thunk
+	void log(String s) {
 		Log.d(TAG, getClass().getSimpleName() + "] " + s);
 	}
 
@@ -1025,8 +1060,9 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 		this.mAlwaysMultiSelectMode = mAlwaysMultiSelectMode;
 	}
 
-	public void setEmptyView(View _emptyView) {
+	public void setEmptyView(View _initialView, View _emptyView) {
 		this.emptyView = _emptyView;
+		this.initialView = _initialView;
 
 		if (emptyView == null) {
 			if (observer != null) {
@@ -1049,30 +1085,64 @@ public abstract class FlexibleRecyclerAdapter<VH extends RecyclerView.ViewHolder
 					checkEmpty();
 				}
 
-				private void checkEmpty() {
-					if (emptyView == null || recyclerView == null) {
-						return;
-					}
-					boolean shouldShowEmptyView = getItemCount() == 0;
-					if (emptyView instanceof ViewSwitcher) {
-						ViewSwitcher viewSwitcher = (ViewSwitcher) emptyView;
-						boolean showingEmptyView = viewSwitcher.getChildAt(
-								1) == viewSwitcher.getCurrentView();
-						if (showingEmptyView != shouldShowEmptyView) {
-							viewSwitcher.showNext();
-						}
-					} else {
-						boolean showingEmptyView = emptyView.getVisibility() == View.VISIBLE;
-						if (showingEmptyView != shouldShowEmptyView) {
-							emptyView.setVisibility(
-									shouldShowEmptyView ? View.VISIBLE : View.GONE);
-							recyclerView.setVisibility(
-									shouldShowEmptyView ? View.GONE : View.VISIBLE);
-						}
-					}
-				}
 			};
 			registerAdapterDataObserver(observer);
+		}
+
+		if (neverSetItems && initialView != null) {
+			initialView.setVisibility(View.VISIBLE);
+			View view = initialView.findViewById(R.id.wait_frog);
+			if (view != null) {
+				Animation animation = new AlphaAnimation(1, 0.1f);
+				animation.setInterpolator(new LinearInterpolator());
+				animation.setDuration(1500);
+
+				animation.setRepeatMode(Animation.REVERSE);
+				animation.setRepeatCount(Animation.INFINITE);
+				view.startAnimation(animation);
+			}
+		} else {
+			checkEmpty();
+		}
+	}
+
+	public boolean isNeverSetItems() {
+		return neverSetItems;
+	}
+
+	public void triggerEmptyList() {
+		neverSetItems = false;
+		checkEmpty();
+	}
+
+	@Thunk
+	void checkEmpty() {
+		if (!AndroidUtilsUI.isUIThread()) {
+			recyclerView.post(new Runnable() {
+				@Override
+				public void run() {
+					checkEmpty();
+				}
+			});
+			return;
+		}
+		if (initialView != null && initialView.getVisibility() == View.VISIBLE) {
+			initialView.setVisibility(View.GONE);
+
+			View view = initialView.findViewById(R.id.wait_frog);
+			if (view != null) {
+				view.setAnimation(null);
+			}
+		}
+		if (emptyView == null || recyclerView == null) {
+			return;
+		}
+		boolean shouldShowEmptyView = getItemCount() == 0;
+		boolean showingEmptyView = emptyView.getVisibility() == View.VISIBLE;
+		if (showingEmptyView != shouldShowEmptyView) {
+			emptyView.setVisibility(shouldShowEmptyView ? View.VISIBLE : View.GONE);
+			recyclerView.setVisibility(
+					shouldShowEmptyView ? View.GONE : View.VISIBLE);
 		}
 	}
 }

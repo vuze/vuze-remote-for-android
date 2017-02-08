@@ -16,8 +16,12 @@
 
 package com.vuze.android.remote.dialog;
 
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.fragment.SessionInfoGetter;
+import com.vuze.android.remote.AndroidUtils;
+import com.vuze.android.remote.AndroidUtilsUI;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
+import com.vuze.android.remote.R;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.Thunk;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -25,9 +29,13 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.v4.app.*;
+import android.support.annotation.Nullable;
+import android.support.v4.app.DialogFragment;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 
@@ -38,14 +46,26 @@ public class DialogFragmentNumberPicker
 {
 	private static final String TAG = "NumberPickerDialog";
 
-	/* @Thunk */ NumberPickerDialogListener mListener;
+	private static final String KEY_MIN = "min";
+
+	private static final String KEY_MAX = "max";
+
+	private static final String KEY_VAL = "val";
+
+	private static final String KEY_ID_TITLE = "id_title";
+
+	private static final String KEY_CALLBACK_ID = "callbackID";
+
+	@Thunk
+	NumberPickerDialogListener mListener;
 
 	public interface NumberPickerDialogListener
 	{
-		void onNumberPickerChange(String callbackID, int val);
+		void onNumberPickerChange(@Nullable String callbackID, int val);
 	}
 
-	/* @Thunk */ int val = 0;
+	@Thunk
+	int val = 0;
 
 	private int max;
 
@@ -57,16 +77,16 @@ public class DialogFragmentNumberPicker
 			String remoteProfileID, int id_title, int currentVal, int min, int max) {
 		DialogFragment dlg = new DialogFragmentNumberPicker();
 		Bundle bundle = new Bundle();
-		bundle.putString(SessionInfoManager.BUNDLE_KEY, remoteProfileID);
-		bundle.putInt("min", min);
-		bundle.putInt("max", max);
-		bundle.putInt("val", currentVal);
+		bundle.putString(SessionManager.BUNDLE_KEY, remoteProfileID);
+		bundle.putInt(KEY_MIN, min);
+		bundle.putInt(KEY_MAX, max);
+		bundle.putInt(KEY_VAL, currentVal);
 		if (id_title > 0) {
-			bundle.putInt("id_title", id_title);
+			bundle.putInt(KEY_ID_TITLE, id_title);
 		}
-		bundle.putString("callbackID", callbackID);
+		bundle.putString(KEY_CALLBACK_ID, callbackID);
 		dlg.setArguments(bundle);
-		AndroidUtilsUI.showDialog(dlg, fm, "SizeRangeDialog");
+		AndroidUtilsUI.showDialog(dlg, fm, TAG);
 	}
 
 	@NonNull
@@ -76,13 +96,13 @@ public class DialogFragmentNumberPicker
 
 		Bundle arguments = getArguments();
 		if (arguments != null) {
-			max = arguments.getInt("max");
-			min = arguments.getInt("min");
-			initialVal = arguments.getInt("val");
-			id_title = arguments.getInt("id_title");
+			max = arguments.getInt(KEY_MAX);
+			min = arguments.getInt(KEY_MIN);
+			initialVal = arguments.getInt(KEY_VAL);
+			id_title = arguments.getInt(KEY_ID_TITLE);
 		}
 		final String callbackID = arguments == null ? null
-				: arguments.getString("callbackID");
+				: arguments.getString(KEY_CALLBACK_ID);
 
 		if (max <= 0) {
 			max = 1024;
@@ -90,7 +110,7 @@ public class DialogFragmentNumberPicker
 
 		val = Math.max(min, Math.min(max, initialVal));
 
-		AndroidUtils.AlertDialogBuilder alertDialogBuilder = AndroidUtilsUI.createAlertDialogBuilder(
+		AlertDialogBuilder alertDialogBuilder = AndroidUtilsUI.createAlertDialogBuilder(
 				getActivity(), AndroidUtils.isTV() ? R.layout.dialog_number_picker_tv
 						: R.layout.dialog_number_picker);
 
@@ -171,8 +191,11 @@ public class DialogFragmentNumberPicker
 		}
 
 		AlertDialog dialog = builder.create();
-		dialog.getWindow().setSoftInputMode(
-				WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+		Window window = dialog.getWindow();
+		if (window != null) {
+			window.setSoftInputMode(
+					WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+		}
 
 		return dialog;
 	}

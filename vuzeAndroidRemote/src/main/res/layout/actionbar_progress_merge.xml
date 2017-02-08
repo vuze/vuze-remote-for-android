@@ -16,6 +16,7 @@
   -->
 
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
+			 xmlns:app="http://schemas.android.com/apk/res-auto"
 			 xmlns:tools="http://schemas.android.com/tools">
 
 	<android.support.v7.widget.Toolbar
@@ -23,9 +24,10 @@
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:background="?attr/colorPrimary"
+		android:elevation="4dp"
 		android:minHeight="?attr/actionBarSize"
-		android:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-		android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+		app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+		app:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
 		<ProgressBar
 			android:id="@+id/progress_spinner"

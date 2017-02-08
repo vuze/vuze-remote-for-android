@@ -18,10 +18,19 @@ package com.vuze.android.remote.spanbubbles;
 
 import java.util.*;
 
+import com.vuze.android.remote.AndroidUtils;
+import com.vuze.android.remote.R;
+import com.vuze.android.remote.adapter.TorrentListAdapter;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.util.TextViewFlipper;
+import com.vuze.util.MapUtils;
+import com.vuze.util.Thunk;
+
 import android.content.Context;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.StateListDrawable;
+import android.support.annotation.Nullable;
 import android.support.v4.content.ContextCompat;
 import android.text.*;
 import android.text.style.ClickableSpan;
@@ -32,10 +41,6 @@ import android.util.StateSet;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.adapter.TorrentListAdapter;
-import com.vuze.util.MapUtils;
 
 public class SpanTags
 {
@@ -49,19 +54,22 @@ public class SpanTags
 
 	private Context context;
 
-	private SessionInfo sessionInfo;
+	private Session session;
 
 	// Tag Drawables can be static, since we change the state within the Canvas
 	// drawing
-	private static StateListDrawable tagDrawables;
+	private static StateListDrawable tagDrawables = null;
 
-	/* @Thunk */ TextView tvTags;
+	@Thunk
+	TextView tvTags;
 
-	/* @Thunk */ SpanTagsListener listener;
+	@Thunk
+	SpanTagsListener listener;
 
-	private HashMap<Long, Map<?, ?>> mapTagIdsToTagMap = new LinkedHashMap<>();
+	private final HashMap<Long, Map<?, ?>> mapTagIdsToTagMap = new LinkedHashMap<>(
+			4);
 
-	private List<String> listAdditionalNames = new ArrayList<>();
+	private final List<String> listAdditionalNames = new ArrayList<>(1);
 
 	private TextViewFlipper flipper;
 
@@ -75,18 +83,21 @@ public class SpanTags
 
 	private boolean linkTags = true;
 
+	@Thunk
+	int lineSpaceExtra = 0;
+
 	public SpanTags() {
 	}
 
-	public SpanTags(Context context, SessionInfo sessionInfo, TextView tvTags,
-			SpanTagsListener listener) {
-		init(context, sessionInfo, tvTags, listener);
+	public SpanTags(Context context, @Nullable Session session, TextView tvTags,
+			@Nullable SpanTagsListener listener) {
+		init(context, session, tvTags, listener);
 	}
 
-	public void init(Context context, SessionInfo sessionInfo, TextView tvTags,
-			SpanTagsListener listener) {
+	public void init(Context context, @Nullable Session session, TextView tvTags,
+			@Nullable SpanTagsListener listener) {
 		this.context = context;
-		this.sessionInfo = sessionInfo;
+		this.session = session;
 		this.tvTags = tvTags;
 		this.listener = listener;
 	}
@@ -165,7 +176,11 @@ public class SpanTags
 		return sb;
 	}
 
-	public void setTagBubbles(final SpannableStringBuilder ss, String text,
+	public void setLineSpaceExtra(int lineSpaceExtra) {
+		this.lineSpaceExtra = lineSpaceExtra;
+	}
+
+	private void setTagBubbles(final SpannableStringBuilder ss, String text,
 			String token) {
 		if (ss.length() > 0) {
 			// hack to ensure descent is always added by TextView
@@ -206,8 +221,8 @@ public class SpanTags
 			Map mapTag = null;
 			try {
 				long tagUID = Long.parseLong(id);
-				if (linkTags && sessionInfo != null) {
-					mapTag = sessionInfo.getTag(tagUID);
+				if (linkTags && session != null) {
+					mapTag = session.tag.getTag(tagUID);
 				} else if (mapTagIdsToTagMap != null) {
 					mapTag = mapTagIdsToTagMap.get(tagUID);
 				}
@@ -240,6 +255,11 @@ public class SpanTags
 						return TAG_STATE_SELECTED;
 					}
 					return listener.getTagState(finalIndex, fMapTag, word);
+				}
+
+				@Override
+				public int getLineSpaceExtra() {
+					return lineSpaceExtra;
 				}
 			};
 
@@ -383,15 +403,13 @@ public class SpanTags
 
 	public interface SpanTagsListener
 	{
-		void tagClicked(int index, Map mapTag, String name);
+		void tagClicked(int index, @Nullable Map mapTag, String name);
 
-		int getTagState(int index, Map mapTag, String name);
+		int getTagState(int index, @Nullable Map mapTag, String name);
 	}
 
 	/**
 	 * Sets whether to draw the count indicator
-	 *
-	 * @param drawCount
 	 */
 	public void setDrawCount(boolean drawCount) {
 		this.drawCount = drawCount;

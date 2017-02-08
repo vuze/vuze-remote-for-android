@@ -19,13 +19,17 @@ package com.vuze.android.remote.dialog;
 import java.util.ArrayList;
 import java.util.Calendar;
 
-import com.vuze.android.remote.*;
+import com.vuze.android.remote.AndroidUtilsUI;
+import com.vuze.android.remote.R;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.Thunk;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.os.*;
+import android.os.Build;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.DialogFragment;
@@ -37,47 +41,61 @@ import android.view.*;
 import android.widget.*;
 
 public class DialogFragmentDateRange
-		extends DialogFragmentResized
+	extends DialogFragmentResized
 {
-	private static final String TAG = "DateRange";
+	private static final String TAG = "DateRangeDialog";
 
-	/*@Thunk*/ DateRangeDialogListener mListener;
+	private static final String KEY_START = "start";
+
+	private static final String KEY_END = "end";
+
+	private static final String KEY_CALLBACK_ID = "callbackID";
+
+	@Thunk
+	DateRangeDialogListener mListener;
 
 	public interface DateRangeDialogListener
 	{
-		void onDateRangeChanged(String callbackID, long start, long end);
+		void onDateRangeChanged(@Nullable String callbackID, long start, long end);
 	}
 
-	/*@Thunk*/ long start = 0;
+	@Thunk
+	long start = 0;
 
-	/*@Thunk*/ long end = -1;
+	@Thunk
+	long end = -1;
 
 	private long initialStart;
 
 	private long initialEnd;
 
-	public static void openDialog(FragmentManager fm, String callbackID,
+	public static void openDialog(FragmentManager fm, @Nullable String callbackID,
 			String remoteProfileID, long start, long end) {
 		DialogFragment dlg = new DialogFragmentDateRange();
 		// Put things into Bundle instead of passing as a constructor, since
 		// Android may regenerate this Dialog with no constructor.
 		Bundle bundle = new Bundle();
-		bundle.putString(SessionInfoManager.BUNDLE_KEY, remoteProfileID);
-		bundle.putLong("start", start);
-		bundle.putLong("end", end);
-		bundle.putString("callbackID", callbackID);
+		bundle.putString(SessionManager.BUNDLE_KEY, remoteProfileID);
+		bundle.putLong(KEY_START, start);
+		bundle.putLong(KEY_END, end);
+		bundle.putString(KEY_CALLBACK_ID, callbackID);
 		dlg.setArguments(bundle);
-		AndroidUtilsUI.showDialog(dlg, fm, "DateRangeDialog");
+		AndroidUtilsUI.showDialog(dlg, fm, TAG);
 	}
 
 	@Nullable
 	@Override
 	public View onCreateView(LayoutInflater inflater,
 			@Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-		getDialog().getWindow().requestFeature(Window.FEATURE_NO_TITLE);
-		getDialog().setCanceledOnTouchOutside(true);
-		View view = super.onCreateView(inflater, container, savedInstanceState);
-		return view;
+		Dialog dialog = getDialog();
+		if (dialog != null) {
+			Window window = dialog.getWindow();
+			if (window != null) {
+				window.requestFeature(Window.FEATURE_NO_TITLE);
+			}
+			dialog.setCanceledOnTouchOutside(true);
+		}
+		return super.onCreateView(inflater, container, savedInstanceState);
 	}
 
 	@NonNull
@@ -85,15 +103,14 @@ public class DialogFragmentDateRange
 	public Dialog onCreateDialog(Bundle savedInstanceState) {
 		Bundle arguments = getArguments();
 		if (arguments != null) {
-			initialStart = arguments.getLong("start");
-			initialEnd = arguments.getLong("end");
+			initialStart = arguments.getLong(KEY_START);
+			initialEnd = arguments.getLong(KEY_END);
 		}
 		final String callbackID = arguments == null ? null
-				: arguments.getString("callbackID");
+				: arguments.getString(KEY_CALLBACK_ID);
 
-		AndroidUtils.AlertDialogBuilder alertDialogBuilder = AndroidUtilsUI
-				.createAlertDialogBuilder(
-						getActivity(), R.layout.dialog_date_rangepicker);
+		AndroidUtilsUI.AlertDialogBuilder alertDialogBuilder = AndroidUtilsUI.createAlertDialogBuilder(
+				getActivity(), R.layout.dialog_date_rangepicker);
 
 		View view = alertDialogBuilder.view;
 		AlertDialog.Builder builder = alertDialogBuilder.builder;
@@ -133,8 +150,7 @@ public class DialogFragmentDateRange
 
 		Button btnSet = (Button) view.findViewById(R.id.range_set);
 		if (btnSet != null) {
-			btnSet.setOnClickListener(new View.OnClickListener()
-			{
+			btnSet.setOnClickListener(new View.OnClickListener() {
 				@Override
 				public void onClick(View v) {
 					if (mListener != null) {
@@ -147,8 +163,7 @@ public class DialogFragmentDateRange
 
 			// Add action buttons
 			builder.setPositiveButton(R.string.action_filterby,
-					new DialogInterface.OnClickListener()
-					{
+					new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, int id) {
 
@@ -158,8 +173,7 @@ public class DialogFragmentDateRange
 						}
 					});
 			builder.setNeutralButton(R.string.button_clear,
-					new DialogInterface.OnClickListener()
-					{
+					new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							if (mListener != null) {
@@ -169,8 +183,7 @@ public class DialogFragmentDateRange
 						}
 					});
 			builder.setNegativeButton(android.R.string.cancel,
-					new DialogInterface.OnClickListener()
-					{
+					new DialogInterface.OnClickListener() {
 						@Override
 						public void onClick(DialogInterface dialog, int id) {
 							DialogFragmentDateRange.this.getDialog().cancel();
@@ -199,8 +212,7 @@ public class DialogFragmentDateRange
 		int month = c.get(Calendar.MONTH);
 		int day = c.get(Calendar.DAY_OF_MONTH);
 
-		pickerValue0.init(year, month, day, new DatePicker.OnDateChangedListener()
-		{
+		pickerValue0.init(year, month, day, new DatePicker.OnDateChangedListener() {
 			@Override
 			public void onDateChanged(DatePicker view, int year, int monthOfYear,
 					int dayOfMonth) {
@@ -216,8 +228,7 @@ public class DialogFragmentDateRange
 		month = c.get(Calendar.MONTH);
 		day = c.get(Calendar.DAY_OF_MONTH);
 
-		pickerValue1.init(year, month, day, new DatePicker.OnDateChangedListener()
-		{
+		pickerValue1.init(year, month, day, new DatePicker.OnDateChangedListener() {
 			@Override
 			public void onDateChanged(DatePicker view, int year, int monthOfYear,
 					int dayOfMonth) {
@@ -249,17 +260,17 @@ public class DialogFragmentDateRange
 					}
 					if (list.size() == 6) {
 						list.get(2).setNextFocusRightId(range1Switch.getId());
-
+		
 						pickerValue1.setNextFocusLeftId(list.get(2).getId());
 					}
-
+		
 					range1Switch.setNextFocusLeftId(list.get(2).getId());
 				}
 			}
-
+		
 			@Override
 			public void onChildViewRemoved(View parent, View child) {
-
+		
 			}
 		};
 		((ViewGroup) pickerValue0.getChildAt(0)).setOnHierarchyChangeListener(
@@ -267,7 +278,7 @@ public class DialogFragmentDateRange
 		((ViewGroup) pickerValue1.getChildAt(
 				pickerValue1.getChildCount() - 1)).setOnHierarchyChangeListener(
 						onHierarchyChangeListener);
-
+		
 		range1Switch.setOnFocusChangeListener(new View.OnFocusChangeListener() {
 			@Override
 			public void onFocusChange(View vv, boolean hasFocus) {
@@ -288,10 +299,10 @@ public class DialogFragmentDateRange
 					}
 					if (list.size() == 6) {
 						list.get(2).setNextFocusRightId(range1Switch.getId());
-
+		
 						pickerValue1.setNextFocusLeftId(list.get(2).getId());
 					}
-
+		
 					range1Switch.setNextFocusLeftId(list.get(2).getId());
 				}
 			}
@@ -299,9 +310,8 @@ public class DialogFragmentDateRange
 		*/
 
 		try {
-			Class.forName(
-					"android.widget.NumberPicker"); // Throws on API 7, maybe others
-			ArrayList<View> list = new ArrayList<>();
+			Class.forName("android.widget.NumberPicker"); // Throws on API 7, maybe others
+			ArrayList<View> list = new ArrayList<>(1);
 			AndroidUtilsUI.findByClass((ViewGroup) view, NumberPicker.class, list);
 			if (list.size() > 0) {
 //			View lastView = null;
@@ -330,8 +340,7 @@ public class DialogFragmentDateRange
 		}
 
 		range1Switch.setOnCheckedChangeListener(
-				new CompoundButton.OnCheckedChangeListener()
-				{
+				new CompoundButton.OnCheckedChangeListener() {
 					@Override
 					public void onCheckedChanged(CompoundButton buttonView,
 							boolean isChecked) {

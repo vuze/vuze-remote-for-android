@@ -16,8 +16,19 @@
 
 package com.vuze.android.remote.adapter;
 
+import java.io.Serializable;
+
+import com.squareup.picasso.Picasso;
+import com.vuze.android.FlexibleRecyclerAdapter;
+import com.vuze.android.FlexibleRecyclerSelectionListener;
+import com.vuze.android.FlexibleRecyclerViewHolder;
+import com.vuze.android.remote.R;
+import com.vuze.android.remote.VuzeRemoteApp;
+import com.vuze.util.DisplayFormatters;
+
 import android.content.Context;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,14 +36,7 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.squareup.picasso.Picasso;
-import com.vuze.android.FlexibleRecyclerAdapter;
-import com.vuze.android.FlexibleRecyclerSelectionListener;
-import com.vuze.android.FlexibleRecyclerViewHolder;
-import com.vuze.android.remote.*;
-import com.vuze.util.DisplayFormatters;
-
-import java.io.Serializable;
+import org.jetbrains.annotations.NonNls;
 
 /**
  * Created by TuxPaper on 4/22/16.
@@ -69,8 +73,10 @@ public class MetaSearchEnginesAdapter
 	public static class MetaSearchEnginesInfo
 		implements Comparable<MetaSearchEnginesInfo>, Serializable
 	{
+		@NonNls
 		public final String uid;
 
+		@NonNls
 		public String name;
 
 		public boolean completed;
@@ -83,7 +89,7 @@ public class MetaSearchEnginesAdapter
 			this.uid = uid;
 		}
 
-		public MetaSearchEnginesInfo(String uid, String name, String iconURL,
+		public MetaSearchEnginesInfo(String uid, String name, @Nullable String iconURL,
 				boolean completed) {
 			this.name = name;
 			this.iconURL = iconURL;
@@ -148,9 +154,7 @@ public class MetaSearchEnginesAdapter
 		View rowView = inflater.inflate(R.layout.row_ms_engine_sidelist, parent,
 				false);
 
-		MetaSearchEnginesHolder vh = new MetaSearchEnginesHolder(this, rowView);
-
-		return vh;
+		return new MetaSearchEnginesHolder(this, rowView);
 	}
 
 	public void refreshItem(String uid, boolean completed, int numAdded) {

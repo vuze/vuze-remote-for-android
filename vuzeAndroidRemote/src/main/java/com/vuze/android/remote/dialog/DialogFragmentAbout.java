@@ -17,11 +17,11 @@
 package com.vuze.android.remote.dialog;
 
 import com.vuze.android.remote.AndroidUtilsUI;
+import com.vuze.android.remote.AndroidUtilsUI.AlertDialogBuilder;
 import com.vuze.android.remote.R;
-import com.vuze.android.remote.AndroidUtils.AlertDialogBuilder;
 
-import android.app.Dialog;
 import android.app.AlertDialog.Builder;
+import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -33,6 +33,8 @@ import android.widget.TextView;
 public class DialogFragmentAbout
 	extends DialogFragmentBase
 {
+
+	private static final String TAG = "About";
 
 	@NonNull
 	@Override
@@ -71,6 +73,6 @@ public class DialogFragmentAbout
 
 	@Override
 	public String getLogTag() {
-		return "About";
+		return TAG;
 	}
 }

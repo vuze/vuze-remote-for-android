@@ -16,12 +16,18 @@
 
 package com.vuze.android.remote.fragment;
 
-import android.support.v4.app.FragmentActivity;
-import android.util.Log;
-
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.adapter.TorrentPagerAdapter.PagerPosition;
 import com.vuze.android.remote.rpc.TorrentListReceivedListener;
+import com.vuze.android.remote.session.RefreshTriggerListener;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
+
+import android.os.Bundle;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 
 /**
  * A Fragment that belongs to a page in {@link TorrentDetailsFragment}
@@ -38,26 +44,32 @@ public abstract class TorrentDetailPage
 
 	protected long torrentID = -1;
 
-	protected SessionInfo sessionInfo;
-
 	private long pausedTorrentID = -1;
 
 	private boolean viewActive = false;
 
+	protected String remoteProfileID;
+
+	protected @NonNull
+	Session getSession() {
+		return SessionManager.getSession(remoteProfileID, null, null);
+	}
+
 	@Override
-	public void onStart() {
-		super.onStart();
+	public void onCreate(@Nullable Bundle savedInstanceState) {
+		remoteProfileID = SessionManager.findRemoteProfileID(getActivity(),
+				TAG);
+		super.onCreate(savedInstanceState);
 	}
 
 	@Override
 	public void onPause() {
 		super.onPause();
 
-		if (sessionInfo != null) {
-			sessionInfo.removeRefreshTriggerListener(this);
-			sessionInfo.removeTorrentListReceivedListener(this);
-		} else {
-			logD("No sessionInfo " + torrentID);
+		if (SessionManager.hasSession(remoteProfileID)) {
+			Session session = getSession();
+			session.removeRefreshTriggerListener(this);
+			session.torrent.removeListReceivedListener(this);
 		}
 	}
 
@@ -67,11 +79,6 @@ public abstract class TorrentDetailPage
 			logD("onResume, pausedTorrentID=" + pausedTorrentID);
 		}
 		super.onResume();
-
-		if (getActivity() instanceof SessionInfoGetter) {
-			SessionInfoGetter getter = (SessionInfoGetter) getActivity();
-			sessionInfo = getter.getSessionInfo();
-		}
 
 		pagerPosition = getArguments().getInt("pagerPosition", pagerPosition);
 
@@ -105,20 +112,19 @@ public abstract class TorrentDetailPage
 			logD("pageDeactivated " + torrentID);
 		}
 		viewActive = false;
-		if (torrentID != -1) {
-			pausedTorrentID = torrentID;
-			setTorrentID(-1);
-		}
+		// We lose focus info when clearing torrentID on page deactivation
+		// Disable for now
+//		if (torrentID != -1) {
+//			pausedTorrentID = torrentID;
+//			setTorrentID(-1);
+//		}
 
-		if (sessionInfo != null) {
-			sessionInfo.removeRefreshTriggerListener(this);
-			sessionInfo.removeTorrentListReceivedListener(this);
-		} else {
-			logD("No sessionInfo " + torrentID);
-		}
+		Session session = getSession();
+		session.removeRefreshTriggerListener(this);
+		session.torrent.removeListReceivedListener(this);
 
 		if (hasOptionsMenu()) {
-			AndroidUtils.invalidateOptionsMenuHC(getActivity());
+			AndroidUtilsUI.invalidateOptionsMenuHC(getActivity());
 		}
 
 		VuzeEasyTracker.getInstance(this).fragmentStop(this);
@@ -142,10 +148,9 @@ public abstract class TorrentDetailPage
 			setTorrentID(newTorrentID);
 		}
 
-		if (sessionInfo != null) {
-			sessionInfo.addRefreshTriggerListener(this);
-			sessionInfo.addTorrentListReceivedListener(this, false);
-		}
+		Session session = getSession();
+		session.addRefreshTriggerListener(this);
+		session.torrent.addListReceivedListener(this, false);
 
 		VuzeEasyTracker.getInstance(this).fragmentStart(this, getTAG());
 	}
@@ -174,14 +179,6 @@ public abstract class TorrentDetailPage
 		boolean isTorrent = id >= 0;
 		boolean torrentIdChanged = id != torrentID;
 
-		if (sessionInfo == null) {
-			if (AndroidUtils.DEBUG) {
-				logE("setTorrentID: No sessionInfo");
-			}
-			pausedTorrentID = id;
-			return;
-		}
-
 		torrentID = id;
 
 		updateTorrentID(torrentID, isTorrent, wasTorrent, torrentIdChanged);
@@ -202,7 +199,7 @@ public abstract class TorrentDetailPage
 	public abstract void triggerRefresh();
 
 	/**
-	 * SessionInfo will not be null
+	 * Session will not be null
 	 */
 	public abstract void updateTorrentID(long torrentID, boolean isTorrent,
 			boolean wasTorrent, boolean torrentIdChanged);

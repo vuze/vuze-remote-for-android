@@ -1,5 +1,11 @@
 package com.vuze.android.remote.fragment;
 
+import com.astuetz.PagerSlidingTabStrip;
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.adapter.OpenOptionsPagerAdapter;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.Thunk;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -11,9 +17,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 //import com.astuetz.PagerSlidingTabStrip;
-import com.astuetz.PagerSlidingTabStrip;
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.adapter.OpenOptionsPagerAdapter;
 
 /**
  * Created by TuxPaper on 12/29/15.
@@ -23,7 +26,8 @@ public class OpenOptionsTabFragment
 {
 	private static final String TAG = "OpenOptionsTab";
 
-	/* @Thunk */ OpenOptionsPagerAdapter pagerAdapter;
+	@Thunk
+	OpenOptionsPagerAdapter pagerAdapter;
 
 	@Override
 	public void onStart() {
@@ -50,8 +54,9 @@ public class OpenOptionsTabFragment
 			Log.e(TAG, "No extras!");
 		}
 
-		View topView = inflater.inflate(R.layout.frag_openoptions_tabs, container,
-				false);
+		View topView = inflater.inflate(AndroidUtils.isTV()
+				? R.layout.frag_openoptions_tabs_tv : R.layout.frag_openoptions_tabs,
+				container, false);
 
 		String tag = getTag();
 
@@ -61,7 +66,8 @@ public class OpenOptionsTabFragment
 		//Log.e(TAG, this + "pagerAdapter is " + pagerAdapter + ";vp=" + viewPager + ";tabs=" + tabs + ";tag=" + tag);
 		if (viewPager != null && tabs != null) {
 			pagerAdapter = new OpenOptionsPagerAdapter(getChildFragmentManager(),
-					viewPager, tabs, tag == null);
+					viewPager, tabs, tag == null,
+					SessionManager.findRemoteProfileID(this));
 			tabs.setOnPageChangeListener(new ViewPager.OnPageChangeListener() {
 				@Override
 				public void onPageScrolled(int position, float positionOffset,

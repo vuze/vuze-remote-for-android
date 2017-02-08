@@ -20,6 +20,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import com.vuze.android.remote.*;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.Session.RpcExecuter;
+import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
+import com.vuze.android.remote.dialog.DialogFragmentMoveData;
+import com.vuze.android.remote.rpc.*;
+import com.vuze.android.remote.session.SessionManager;
+import com.vuze.util.DisplayFormatters;
+import com.vuze.util.MapUtils;
+import com.vuze.util.Thunk;
+
 import android.app.AlertDialog;
 import android.app.AlertDialog.Builder;
 import android.content.DialogInterface;
@@ -36,34 +47,28 @@ import android.view.ViewGroup;
 import android.widget.*;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 
-import com.vuze.android.remote.*;
-import com.vuze.android.remote.SessionInfo.RpcExecuter;
-import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
-import com.vuze.android.remote.dialog.DialogFragmentMoveData;
-import com.vuze.android.remote.rpc.ReplyMapReceivedListener;
-import com.vuze.android.remote.rpc.TorrentListReceivedListener;
-import com.vuze.android.remote.rpc.TransmissionRPC;
-import com.vuze.util.DisplayFormatters;
-import com.vuze.util.MapUtils;
-
 public class OpenOptionsGeneralFragment
 	extends Fragment
 {
-	static final String TAG = "OpenOptionsGeneral";
+	private static final String TAG = "OpenOptionsGeneral";
 
-	private View topView;
+	@Thunk
+	long torrentID;
 
-	/* @Thunk */ SessionInfo sessionInfo;
+	@Thunk
+	TextView tvName;
 
-	/* @Thunk */ long torrentID;
+	@Thunk
+	TextView tvSaveLocation;
 
-	/* @Thunk */ TextView tvName;
+	@Thunk
+	TorrentOpenOptionsActivity ourActivity;
 
-	/* @Thunk */ TextView tvSaveLocation;
+	@Thunk
+	TextView tvFreeSpace;
 
-	/* @Thunk */ TorrentOpenOptionsActivity ourActivity;
-
-	/* @Thunk */ TextView tvFreeSpace;
+	@Thunk
+	String remoteProfileID;
 
 	@Override
 	public void onStart() {
@@ -88,23 +93,19 @@ public class OpenOptionsGeneralFragment
 		final Bundle extras = intent.getExtras();
 		if (extras == null) {
 			Log.e(TAG, "No extras!");
-		} else {
-
-			String remoteProfileID = extras.getString(SessionInfoManager.BUNDLE_KEY);
-			if (remoteProfileID != null) {
-				sessionInfo = SessionInfoManager.getSessionInfo(remoteProfileID,
-						activity);
-			}
-
-			torrentID = extras.getLong("TorrentID");
+			return null;
 		}
+
+		remoteProfileID = SessionManager.findRemoteProfileID(this);
+
+		torrentID = extras.getLong("TorrentID");
 
 		if (activity instanceof TorrentOpenOptionsActivity) {
 			ourActivity = (TorrentOpenOptionsActivity) activity;
 		}
 
-		topView = inflater.inflate(R.layout.frag_openoptions_general, container,
-				false);
+		View topView = inflater.inflate(R.layout.frag_openoptions_general,
+				container, false);
 
 		ImageButton btnEditDir = (ImageButton) topView.findViewById(
 				R.id.openoptions_btn_editdir);
@@ -146,7 +147,10 @@ public class OpenOptionsGeneralFragment
 			}
 		}
 
-		final Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		final Map<?, ?> torrent = session.torrent
+			.getCachedTorrent(torrentID);
 
 		if (torrent == null) {
 			getActivity().finish();
@@ -158,7 +162,7 @@ public class OpenOptionsGeneralFragment
 		if (torrent.containsKey(TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR)) {
 			updateFields(torrent);
 		} else {
-			sessionInfo.executeRpc(new RpcExecuter() {
+			session.executeRpc(new RpcExecuter() {
 				@Override
 				public void executeRpc(TransmissionRPC rpc) {
 					rpc.getTorrent(TAG, torrentID,
@@ -166,18 +170,18 @@ public class OpenOptionsGeneralFragment
 									TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR),
 							new TorrentListReceivedListener() {
 
-						@Override
-						public void rpcTorrentListReceived(String callID,
-								List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
-							AndroidUtilsUI.runOnUIThread(OpenOptionsGeneralFragment.this,
-									new Runnable() {
 								@Override
-								public void run() {
-									updateFields(torrent);
+								public void rpcTorrentListReceived(String callID,
+										List<?> addedTorrentMaps, List<?> removedTorrentIDs) {
+									AndroidUtilsUI.runOnUIThread(OpenOptionsGeneralFragment.this,
+											new Runnable() {
+												@Override
+												public void run() {
+													updateFields(torrent);
+												}
+											});
 								}
 							});
-						}
-					});
 				}
 			});
 		}
@@ -186,15 +190,18 @@ public class OpenOptionsGeneralFragment
 			btnEditDir.setOnClickListener(new OnClickListener() {
 				@Override
 				public void onClick(View v) {
-					Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
-					DialogFragmentMoveData.openMoveDataDialog(torrent, sessionInfo,
+					Session session = SessionManager.getSession(
+							remoteProfileID, null, null);
+					Map<?, ?> torrent = session.torrent
+						.getCachedTorrent(torrentID);
+					DialogFragmentMoveData.openMoveDataDialog(torrent, session,
 							getFragmentManager());
 				}
 			});
 		}
 
 		if (btnEditName != null) {
-			if (sessionInfo.getSupportsTorrentRename()) {
+			if (session.getSupports(RPCSupports.SUPPORTS_TORRENT_RENAAME)) {
 				btnEditName.setOnClickListener(new OnClickListener() {
 					@Override
 					public void onClick(View v) {
@@ -213,25 +220,23 @@ public class OpenOptionsGeneralFragment
 						builder.setPositiveButton(android.R.string.ok,
 								new DialogInterface.OnClickListener() {
 
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-								final String newName = textView.getText().toString();
-								tvName.setText(newName);
-								sessionInfo.executeRpc(new RpcExecuter() {
-
 									@Override
-									public void executeRpc(TransmissionRPC rpc) {
-										rpc.setDisplayName(TAG, torrentID, newName);
+									public void onClick(DialogInterface dialog, int which) {
+										final String newName = textView.getText().toString();
+										tvName.setText(newName);
+										Session session = SessionManager.getSession(
+												remoteProfileID, null, null);
+										session.torrent
+											.setDisplayName(TAG, torrentID, newName
+											);
 									}
 								});
-							}
-						});
 						builder.setNegativeButton(android.R.string.cancel,
 								new DialogInterface.OnClickListener() {
-							@Override
-							public void onClick(DialogInterface dialog, int which) {
-							}
-						});
+									@Override
+									public void onClick(DialogInterface dialog, int which) {
+									}
+								});
 						builder.show();
 					}
 				});
@@ -243,23 +248,21 @@ public class OpenOptionsGeneralFragment
 		return topView;
 	}
 
-	@Override
-	public void onResume() {
-		super.onResume();
-	}
-
-	/* @Thunk */ void updateFields(Map<?, ?> torrent) {
+	@Thunk
+	void updateFields(Map<?, ?> torrent) {
 		if (tvName != null) {
 			tvName.setText(MapUtils.getMapString(torrent, "name", "dunno"));
 		}
-		final String saveLocation = TorrentUtils.getSaveLocation(sessionInfo,
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		final String saveLocation = TorrentUtils.getSaveLocation(session,
 				torrent);
 		if (tvSaveLocation != null) {
 			tvSaveLocation.setText(saveLocation);
 		}
 		if (tvFreeSpace != null) {
 			tvFreeSpace.setText("");
-			sessionInfo.executeRpc(new RpcExecuter() {
+			session.executeRpc(new RpcExecuter() {
 				@Override
 				public void executeRpc(TransmissionRPC rpc) {
 					rpc.getFreeSpace(saveLocation, new ReplyMapReceivedListener() {
@@ -273,15 +276,15 @@ public class OpenOptionsGeneralFragment
 							}
 							AndroidUtilsUI.runOnUIThread(OpenOptionsGeneralFragment.this,
 									new Runnable() {
-								@Override
-								public void run() {
-									String freeSpaceString = DisplayFormatters.formatByteCountToKiBEtc(
-											freeSpace);
-									String s = getResources().getString(R.string.x_space_free,
-											freeSpaceString);
-									tvFreeSpace.setText(s);
-								}
-							});
+										@Override
+										public void run() {
+											String freeSpaceString = DisplayFormatters.formatByteCountToKiBEtc(
+													freeSpace);
+											String s = getResources().getString(R.string.x_space_free,
+													freeSpaceString);
+											tvFreeSpace.setText(s);
+										}
+									});
 						}
 
 						@Override
@@ -299,7 +302,9 @@ public class OpenOptionsGeneralFragment
 	}
 
 	public void locationChanged(String location) {
-		Map torrent = sessionInfo.getTorrent(torrentID);
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		Map torrent = session.torrent.getCachedTorrent(torrentID);
 		torrent.put(TransmissionVars.FIELD_TORRENT_DOWNLOAD_DIR, location);
 		updateFields(torrent);
 	}

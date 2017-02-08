@@ -17,26 +17,30 @@
 
 package com.vuze.android.remote.spanbubbles;
 
+import com.vuze.android.remote.AndroidUtils;
+
 import android.graphics.*;
 import android.graphics.drawable.Drawable;
-import android.text.*;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.text.Selection;
+import android.text.SpannableStringBuilder;
+import android.text.TextPaint;
 import android.text.style.ClickableSpan;
 import android.text.style.DynamicDrawableSpan;
 import android.text.style.ImageSpan;
 import android.view.View;
 import android.widget.TextView;
 
-import com.vuze.android.remote.AndroidUtils;
-
 public class SpanBubbles
 {
 
 	/**
 	 * Replaces TextView's text with span bubbles
-	 */
+	 *
 	public void setSpanBubbles(TextView tv, String token, final int borderColor,
-			final int textColor, final int fillColor,
-			final SpanBubbleListener listener) {
+		final int textColor, final int fillColor,
+		@Nullable final SpanBubbleListener listener) {
 		if (tv == null) {
 			return;
 		}
@@ -46,17 +50,36 @@ public class SpanBubbles
 		String string = text.toString();
 
 		setSpanBubbles(ss, string, token, tv.getPaint(), borderColor, textColor,
-				fillColor, listener);
+			fillColor, listener);
+		tv.setText(ss);
+	}
+		*/
+
+	/**
+	 * Replaces TextView's text with span bubbles
+	 */
+	public static void setSpanBubbles(TextView tv, String text, String token,
+		final int borderColor,
+		final int textColor, final int fillColor,
+		@Nullable final SpanBubbleListener listener) {
+		if (tv == null) {
+			return;
+		}
+		SpannableStringBuilder ss = new SpannableStringBuilder(text);
+
+		setSpanBubbles(ss, text, token, tv.getPaint(), borderColor, textColor,
+			fillColor, listener);
 		tv.setText(ss);
 	}
 
 	/**
 	 * Outputs span bubbles to ss based on text wrapped in token
 	 */
-	public void setSpanBubbles(final SpannableStringBuilder ss, String text,
-			String token, final TextPaint p, final int borderColor,
-			final int textColor, final int fillColor,
-			final SpanBubbleListener listener) {
+	public static void setSpanBubbles(final SpannableStringBuilder ss,
+		String text,
+		String token, final TextPaint p, final int borderColor,
+		final int textColor, final int fillColor,
+		@Nullable final SpanBubbleListener listener) {
 		if (ss.length() > 0) {
 			// hack so ensure descent is always added by TextView
 			ss.append("\u200B");
@@ -133,7 +156,7 @@ public class SpanBubbles
 		private final SpanBubbleListener listener;
 
 		public MyDrawable(int index, String word, TextPaint p, int fillColor,
-				int borderColor, int textColor, SpanBubbleListener listener) {
+				int borderColor, int textColor, @Nullable SpanBubbleListener listener) {
 			this.index = index;
 			this.word = word;
 			this.p = p;
@@ -153,11 +176,11 @@ public class SpanBubbles
 
 		@Override
 		public int getOpacity() {
-			return 255;
+			return PixelFormat.TRANSLUCENT;
 		}
 
 		@Override
-		public void draw(Canvas canvas) {
+		public void draw(@NonNull Canvas canvas) {
 			Rect bounds = getBounds();
 
 			if (listener != null) {

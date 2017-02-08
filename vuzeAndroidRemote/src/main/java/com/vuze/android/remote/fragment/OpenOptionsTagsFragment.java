@@ -22,11 +22,13 @@ import com.vuze.android.remote.*;
 import com.vuze.android.remote.activity.TorrentOpenOptionsActivity;
 import com.vuze.android.remote.rpc.ReplyMapReceivedListener;
 import com.vuze.android.remote.rpc.TransmissionRPC;
+import com.vuze.android.remote.session.Session;
+import com.vuze.android.remote.session.SessionManager;
 import com.vuze.android.remote.spanbubbles.SpanTags;
 import com.vuze.util.MapUtils;
+import com.vuze.util.Thunk;
 
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
@@ -46,19 +48,23 @@ public class OpenOptionsTagsFragment
 	extends Fragment
 	implements FragmentPagerListener
 {
-	static final String TAG = "OpenOptionsTag";
+	private static final String TAG = "OpenOptionsTag";
 
-	/* @Thunk */ SessionInfo sessionInfo;
-
-	/* @Thunk */ long torrentID;
+	@Thunk
+	long torrentID;
 
 	private TextView tvTags;
 
 	private boolean tagLookupCalled;
 
-	/* @Thunk */ SpanTags spanTags;
+	@Thunk
+	SpanTags spanTags;
 
-	/* @Thunk */ TorrentOpenOptionsActivity ourActivity;
+	@Thunk
+	TorrentOpenOptionsActivity ourActivity;
+
+	@Thunk
+	String remoteProfileID;
 
 	public OpenOptionsTagsFragment() {
 		// Required empty public constructor
@@ -81,20 +87,23 @@ public class OpenOptionsTagsFragment
 		Intent intent = activity.getIntent();
 
 		final Bundle extras = intent.getExtras();
+
 		if (extras == null) {
 			Log.e(TAG, "No extras!");
-		} else {
-
-			String remoteProfileID = extras.getString(SessionInfoManager.BUNDLE_KEY);
-			if (remoteProfileID != null) {
-				sessionInfo = SessionInfoManager.getSessionInfo(remoteProfileID,
-						activity);
-			}
-
-			torrentID = extras.getLong("TorrentID");
+			return null;
 		}
 
-		final Map<?, ?> torrent = sessionInfo.getTorrent(torrentID);
+		remoteProfileID = SessionManager.findRemoteProfileID(this);
+		if (remoteProfileID == null) {
+			Log.e(TAG, "No remoteProfileID!");
+			return null;
+		}
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+
+		torrentID = extras.getLong("TorrentID");
+
+		final Map<?, ?> torrent = session.torrent.getCachedTorrent(torrentID);
 		if (torrent == null) {
 			Log.e(TAG, "No torrent!");
 			// In theory TorrentOpenOptionsActivity handled this NPE already
@@ -122,12 +131,12 @@ public class OpenOptionsTagsFragment
 
 		if (!tagLookupCalled) {
 			tagLookupCalled = true;
-			sessionInfo.executeRpc(new SessionInfo.RpcExecuter() {
+			session.executeRpc(new Session.RpcExecuter() {
 				@Override
 				public void executeRpc(final TransmissionRPC rpc) {
 					Map<String, Object> map = new HashMap<>();
 					map.put("ids", new Object[] {
-						torrent.get("hashString")
+						torrent.get(TransmissionVars.FIELD_TORRENT_HASH_STRING)
 					});
 					rpc.simpleRpcCall("tags-lookup-start", map,
 							new ReplyMapReceivedListener() {
@@ -216,7 +225,8 @@ public class OpenOptionsTagsFragment
 		return topView;
 	}
 
-			/* @Thunk */ void handleNewButtonClick() {
+	@Thunk
+	void handleNewButtonClick() {
 		AlertDialog alertDialog = AndroidUtilsUI.createTextBoxDialog(getContext(),
 				R.string.create_new_tag, R.string.newtag_name,
 				new AndroidUtilsUI.OnTextBoxDialogClick() {
@@ -228,31 +238,17 @@ public class OpenOptionsTagsFragment
 						spanTags.addTagNames(Collections.singletonList(newName));
 						ourActivity.flipTagState(null, newName);
 						updateTags();
-						sessionInfo.executeRpc(new SessionInfo.RpcExecuter() {
-
-							@Override
-							public void executeRpc(TransmissionRPC rpc) {
-								rpc.addTagToTorrents(TAG, new long[] {
-									torrentID
-								}, new Object[] {
-									newName
-								});
-							}
+						Session session = SessionManager.getSession(
+								remoteProfileID, null, null);
+						session.tag.addTagToTorrents(TAG, new long[] {
+							torrentID
+						}, new Object[] {
+							newName
 						});
 					}
 				});
 
 		alertDialog.show();
-	}
-
-	@Override
-	public void onAttach(Context context) {
-		super.onAttach(context);
-	}
-
-	@Override
-	public void onDetach() {
-		super.onDetach();
 	}
 
 	@Override
@@ -283,7 +279,8 @@ public class OpenOptionsTagsFragment
 		}
 	}
 
-	/* @Thunk */ void updateSuggestedTags(Map<?, ?> optionalMap) {
+	@Thunk
+	void updateSuggestedTags(Map<?, ?> optionalMap) {
 		List listTorrents = MapUtils.getMapList(optionalMap, "torrents", null);
 		if (listTorrents == null) {
 			return;
@@ -324,7 +321,9 @@ public class OpenOptionsTagsFragment
 
 		List<Map<?, ?>> manualTags = new ArrayList<>();
 
-		List<Map<?, ?>> allTags = sessionInfo.getTags();
+		Session session = SessionManager.getSession(remoteProfileID,
+				null, null);
+		List<Map<?, ?>> allTags = session.tag.getTags();
 		if (allTags == null) {
 			return;
 		}
@@ -353,11 +352,13 @@ public class OpenOptionsTagsFragment
 			}
 		};
 
-		spanTags = new SpanTags(ourActivity, sessionInfo, tvTags, l);
+		spanTags = new SpanTags(ourActivity, session, tvTags, l);
+		spanTags.setLineSpaceExtra(AndroidUtilsUI.dpToPx(8));
 		spanTags.setTagMaps(manualTags);
 	}
 
-	/* @Thunk */ void updateTags() {
+	@Thunk
+	void updateTags() {
 		if (spanTags == null) {
 			createTags();
 		}

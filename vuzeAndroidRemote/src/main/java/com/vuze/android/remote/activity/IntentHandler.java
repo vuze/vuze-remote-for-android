@@ -1,6 +1,6 @@
 /**
  * Copyright (C) Azureus Software, Inc, All Rights Reserved.
- *
+ * <p>
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -12,25 +12,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- * 
  */
 
 package com.vuze.android.remote.activity;
-
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Bundle;
-import android.support.v7.app.ActionBar;
-import android.support.v7.widget.Toolbar;
-import android.util.Log;
-import android.view.*;
-import android.view.ContextMenu.ContextMenuInfo;
-import android.widget.AdapterView;
-import android.widget.AdapterView.AdapterContextMenuInfo;
-import android.widget.ListView;
 
 import com.vuze.android.remote.*;
 import com.vuze.android.remote.adapter.ProfileArrayAdapter;
@@ -38,22 +22,45 @@ import com.vuze.android.remote.dialog.DialogFragmentAbout;
 import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile;
 import com.vuze.android.remote.dialog.DialogFragmentGenericRemoteProfile.GenericRemoteProfileListener;
 import com.vuze.android.remote.rpc.RPC;
+import com.vuze.android.remote.session.RemoteProfile;
+import com.vuze.android.util.OnClearFromRecentService;
+import com.vuze.android.util.VuzeCoreUtils;
+import com.vuze.util.Thunk;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.support.v7.app.ActionBar;
+import android.support.v7.view.ActionMode;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.*;
+import android.view.ContextMenu.ContextMenuInfo;
+import android.widget.AdapterView;
+import android.widget.AdapterView.AdapterContextMenuInfo;
+import android.widget.Button;
+import android.widget.ListView;
 
 /**
  * Profile Selector screen and Main Intent
  */
 public class IntentHandler
 	extends AppCompatActivityM
-	implements GenericRemoteProfileListener
+	implements GenericRemoteProfileListener,
+	AppPreferences.AppPreferencesChangedListener
+
 {
 
 	private static final String TAG = "ProfileSelector";
 
 	private ListView listview;
 
-	private AppPreferences appPreferences;
-
-	/* @Thunk */ ProfileArrayAdapter adapter;
+	@Thunk
+	ProfileArrayAdapter adapter;
 
 	private Boolean isLocalAvailable = null;
 
@@ -62,15 +69,19 @@ public class IntentHandler
 		if (AndroidUtils.DEBUG) {
 			Log.d(TAG, "OnCreate");
 		}
-		AndroidUtilsUI.onCreate(this);
+		AndroidUtilsUI.onCreate(this, TAG);
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_intent_handler);
+
+		appInit();
 
 		final Intent intent = getIntent();
 
 		if (handleIntent(intent, savedInstanceState)) {
 			return;
 		}
+
+		setContentView(AndroidUtils.isTV() ? R.layout.activity_intent_handler_tv
+				: R.layout.activity_intent_handler);
 
 		listview = (ListView) findViewById(R.id.lvRemotes);
 		assert listview != null;
@@ -115,10 +126,82 @@ public class IntentHandler
 			actionBar.setIcon(R.drawable.ic_launcher);
 		}
 
+		Button btnAdd = (Button) findViewById(R.id.button_profile_add);
+		if (btnAdd != null) {
+			btnAdd.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					AndroidUtilsUI.popupContextMenu(IntentHandler.this,
+							new ActionMode.Callback() {
+								@Override
+								public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+									getMenuInflater().inflate(R.menu.menu_add_profile, menu);
+									return true;
+								}
+
+								@Override
+								public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+									return false;
+								}
+
+								@Override
+								public boolean onActionItemClicked(ActionMode mode,
+										MenuItem item) {
+									onOptionsItemSelected(item);
+									return false;
+								}
+
+								@Override
+								public void onDestroyActionMode(ActionMode mode) {
+
+								}
+							}, getResources().getString(R.string.action_add_profile));
+
+				}
+			});
+		}
+
+		Button btnImport = (Button) findViewById(R.id.button_profile_import);
+		if (btnImport != null) {
+			btnImport.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					AndroidUtils.openFileChooser(IntentHandler.this,
+							"application/octet-stream",
+							TorrentViewActivity.FILECHOOSER_RESULTCODE);
+				}
+			});
+		}
+		Button btnExport = (Button) findViewById(R.id.button_profile_export);
+		if (btnExport != null) {
+			btnExport.setOnClickListener(new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					AppPreferences.exportPrefs(IntentHandler.this);
+				}
+			});
+		}
 		registerForContextMenu(listview);
 	}
 
-	private boolean handleIntent(Intent intent, Bundle savedInstanceState) {
+	private void appInit() {
+		startService(
+				new Intent(getApplicationContext(), OnClearFromRecentService.class));
+	}
+
+	@Override
+	public void appPreferencesChanged() {
+		runOnUiThread(new Runnable() {
+			public void run() {
+				if (adapter != null) {
+					adapter.refreshList();
+				}
+			}
+		});
+	}
+
+	private boolean handleIntent(Intent intent,
+			@Nullable Bundle savedInstanceState) {
 		boolean forceProfileListOpen = (intent.getFlags()
 				& Intent.FLAG_ACTIVITY_CLEAR_TOP) > 0;
 
@@ -127,7 +210,7 @@ public class IntentHandler
 			Log.d(TAG, "IntentHandler intent = " + intent);
 		}
 
-		appPreferences = VuzeRemoteApp.getAppPreferences();
+		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
 
 		Uri data = intent.getData();
 		if (data != null) {
@@ -147,7 +230,7 @@ public class IntentHandler
 					if (ac.equals("cmd=advlogin")) {
 						DialogFragmentGenericRemoteProfile dlg = new DialogFragmentGenericRemoteProfile();
 						AndroidUtilsUI.showDialog(dlg, getSupportFragmentManager(),
-								"GenericRemoteProfile");
+								DialogFragmentGenericRemoteProfile.TAG);
 						forceProfileListOpen = true;
 					} else if (ac.length() < 100) {
 						RemoteProfile remoteProfile = new RemoteProfile("vuze", ac);
@@ -221,12 +304,11 @@ public class IntentHandler
 			Log.d(TAG, "onNewIntent " + intent);
 		}
 		setIntent(intent);
-		if (handleIntent(intent, null)) {
-			return;
-		}
+		handleIntent(intent, null);
 	}
 
 	private RemoteProfile[] getRemotesWithLocal() {
+		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
 		RemoteProfile[] remotes = appPreferences.getRemotes();
 
 		if (isLocalAvailable == null) {
@@ -266,6 +348,8 @@ public class IntentHandler
 	@Override
 	protected void onPause() {
 		super.onPause();
+		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
+		appPreferences.removeAppPreferencesChangedListener(this);
 		isLocalAvailable = null;
 	}
 
@@ -277,6 +361,8 @@ public class IntentHandler
 			RemoteProfile[] remotesWithLocal = getRemotesWithLocal();
 			adapter.addRemotes(remotesWithLocal);
 		}
+		AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
+		appPreferences.addAppPreferencesChangedListener(this);
 	}
 
 	@Override
@@ -304,7 +390,7 @@ public class IntentHandler
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		MenuItem itemAddCoreProfile = menu.findItem(R.id.action_add_core_profile);
 		if (itemAddCoreProfile != null) {
-			itemAddCoreProfile.setVisible(VuzeRemoteApp.isCoreAllowed());
+			itemAddCoreProfile.setVisible(VuzeCoreUtils.isCoreAllowed());
 		}
 
 		return super.onPrepareOptionsMenu(menu);
@@ -322,12 +408,13 @@ public class IntentHandler
 			return true;
 		} else if (itemId == R.id.action_add_adv_profile) {
 			return AndroidUtilsUI.showDialog(new DialogFragmentGenericRemoteProfile(),
-					getSupportFragmentManager(), "GenericRemoteProfile");
+					getSupportFragmentManager(), DialogFragmentGenericRemoteProfile.TAG);
 		} else if (itemId == R.id.action_add_core_profile) {
 			RemoteUtils.createCoreProfile(this,
 					new RemoteUtils.OnCoreProfileCreated() {
 						@Override
-						public void onCoreProfileCreated(RemoteProfile coreProfile) {
+						public void onCoreProfileCreated(RemoteProfile coreProfile,
+								boolean alreadyCreated) {
 							RemoteUtils.editProfile(coreProfile, getSupportFragmentManager());
 						}
 					});
@@ -356,12 +443,12 @@ public class IntentHandler
 				return;
 			}
 			AppPreferences.importPrefs(this, uri);
-			adapter.refreshList();
 		}
 	}
 
 	/* (non-Javadoc)
-	 * @see android.app.Activity#onCreateContextMenu(android.view.ContextMenu, android.view.View, android.view.ContextMenu.ContextMenuInfo)
+	 * @see android.app.Activity#onCreateContextMenu(android.view.ContextMenu,
+	 * android.view.View, android.view.ContextMenu.ContextMenuInfo)
 	 */
 	@Override
 	public void onCreateContextMenu(ContextMenu menu, View v,
@@ -402,7 +489,6 @@ public class IntentHandler
 										public void onClick(DialogInterface dialog, int which) {
 											AppPreferences appPreferences = VuzeRemoteApp.getAppPreferences();
 											appPreferences.removeRemoteProfile(remoteProfile.getID());
-											adapter.refreshList();
 										}
 									}).setNegativeButton(android.R.string.cancel,
 											new DialogInterface.OnClickListener() {
@@ -416,6 +502,5 @@ public class IntentHandler
 
 	public void profileEditDone(RemoteProfile oldProfile,
 			RemoteProfile newProfile) {
-		adapter.refreshList();
 	}
 }

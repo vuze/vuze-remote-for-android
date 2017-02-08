@@ -22,10 +22,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.vuze.android.remote.*;
-import com.vuze.android.remote.activity.TorrentDetailsActivity;
+import com.vuze.android.remote.activity.TorrentDetailsActivityTV;
 import com.vuze.android.remote.adapter.TorrentListAdapter.ViewHolderFlipValidator;
+import com.vuze.android.remote.session.Session;
 import com.vuze.android.remote.spanbubbles.SpanBubbles;
 import com.vuze.android.remote.spanbubbles.SpanTags;
+import com.vuze.android.util.TextViewFlipper;
 import com.vuze.util.DisplayFormatters;
 import com.vuze.util.MapUtils;
 
@@ -39,19 +41,20 @@ import android.view.View;
  * Fills one Torrent info row.
  * <p/>
  * Split out from {@link TorrentListAdapter} so that
- * {@link TorrentDetailsActivity} can use it for its top area
+ * {@link TorrentDetailsActivityTV} can use it for its top area
  */
 public class TorrentListRowFiller
 {
+	@SuppressWarnings("unused")
 	private static final String TAG = "TL_RowFiller";
 
-	private int colorBGTagState;
+	private final int colorBGTagState;
 
-	private int colorFGTagState;
+	private final int colorFGTagState;
 
-	private TextViewFlipper flipper;
+	private final TextViewFlipper flipper;
 
-	private Context context;
+	private final Context context;
 
 	private TorrentListViewHolder viewHolder;
 
@@ -67,16 +70,17 @@ public class TorrentListRowFiller
 		colorFGTagState = AndroidUtilsUI.getStyleColor(context,
 				R.attr.fg_tag_type_2);
 
-		flipper = new TextViewFlipper(R.anim.anim_field_change);
+		flipper = TextViewFlipper.create();
 	}
 
-	public void fillHolder(Map<?, ?> item, SessionInfo sessionInfo) {
-		fillHolder(viewHolder, item, sessionInfo);
+	public void fillHolder(Map<?, ?> item, Session session) {
+		fillHolder(viewHolder, item, session);
 	}
 
 	protected void fillHolder(TorrentListViewHolder holder, Map<?, ?> item,
-			SessionInfo sessionInfo) {
-		long torrentID = MapUtils.getMapLong(item, "id", -1);
+			Session session) {
+		long torrentID = MapUtils.getMapLong(item,
+				TransmissionVars.FIELD_TORRENT_ID, -1);
 
 		Resources resources = holder.tvName.getResources();
 
@@ -90,7 +94,8 @@ public class TorrentListRowFiller
 					AndroidUtils.hasTouchScreen() ? View.GONE : View.VISIBLE);
 		}
 
-		String torrentName = MapUtils.getMapString(item, "name", " ");
+		String torrentName = MapUtils.getMapString(item,
+				TransmissionVars.FIELD_TORRENT_NAME, " ");
 		if (holder.tvName != null) {
 			flipper.changeText(holder.tvName, AndroidUtils.lineBreaker(torrentName),
 					holder.animateFlip, validator);
@@ -98,7 +103,8 @@ public class TorrentListRowFiller
 
 		int fileCount = MapUtils.getMapInt(item,
 				TransmissionVars.FIELD_TORRENT_FILE_COUNT, 0);
-		long size = MapUtils.getMapLong(item, "sizeWhenDone", 0);
+		long size = MapUtils.getMapLong(item,
+				TransmissionVars.FIELD_TORRENT_SIZE_WHEN_DONE, 0);
 		boolean isMagnetDownload = torrentName.startsWith("Magnet download for ")
 				&& fileCount == 0;
 
@@ -143,12 +149,13 @@ public class TorrentListRowFiller
 						+ resources.getString(R.string.torrent_row_info2,
 								DisplayFormatters.formatByteCountToKiBEtc(size));
 			}
-			long error = MapUtils.getMapLong(item, "error",
-					TransmissionVars.TR_STAT_OK);
+			long error = MapUtils.getMapLong(item,
+					TransmissionVars.FIELD_TORRENT_ERROR, TransmissionVars.TR_STAT_OK);
 			if (error != TransmissionVars.TR_STAT_OK) {
 				// error
 				// TODO: parse error and add error type to message
-				String errorString = MapUtils.getMapString(item, "errorString", "");
+				String errorString = MapUtils.getMapString(item,
+						TransmissionVars.FIELD_TORRENT_ERROR_STRING, "");
 				if (holder.tvTrackerError != null) {
 					flipper.changeText(holder.tvTrackerError, errorString,
 							holder.animateFlip, validator);
@@ -168,7 +175,8 @@ public class TorrentListRowFiller
 					holder.animateFlip, validator);
 		}
 		if (holder.tvETA != null) {
-			long etaSecs = MapUtils.getMapLong(item, "eta", -1);
+			long etaSecs = MapUtils.getMapLong(item,
+					TransmissionVars.FIELD_TORRENT_ETA, -1);
 			String s = "";
 			if (etaSecs > 0 && etaSecs * 1000L < DateUtils.WEEK_IN_MILLIS) {
 				s = DisplayFormatters.prettyFormatTimeDiffShort(resources, etaSecs);
@@ -184,7 +192,8 @@ public class TorrentListRowFiller
 			flipper.changeText(holder.tvETA, s, holder.animateFlip, validator);
 		}
 		if (holder.tvUlRate != null) {
-			long rateUpload = MapUtils.getMapLong(item, "rateUpload", 0);
+			long rateUpload = MapUtils.getMapLong(item,
+					TransmissionVars.FIELD_TORRENT_RATE_UPLOAD, 0);
 
 			String rateString = rateUpload <= 0 ? "" : "\u25B2 "
 					+ DisplayFormatters.formatByteCountToKiBEtcPerSec(rateUpload);
@@ -192,7 +201,8 @@ public class TorrentListRowFiller
 					validator);
 		}
 		if (holder.tvDlRate != null) {
-			long rateDownload = MapUtils.getMapLong(item, "rateDownload", 0);
+			long rateDownload = MapUtils.getMapLong(item,
+					TransmissionVars.FIELD_TORRENT_RATE_DOWNLOAD, 0);
 			String rateString = rateDownload <= 0 ? "" : "\u25BC "
 					+ DisplayFormatters.formatByteCountToKiBEtcPerSec(rateDownload);
 			flipper.changeText(holder.tvDlRate, rateString, holder.animateFlip,
@@ -200,7 +210,8 @@ public class TorrentListRowFiller
 		}
 
 		if (holder.tvStatus != null) {
-			List<?> mapTagUIDs = MapUtils.getMapList(item, "tag-uids", null);
+			List<?> mapTagUIDs = MapUtils.getMapList(item,
+					TransmissionVars.FIELD_TORRENT_TAG_UIDS, null);
 			StringBuilder text = new StringBuilder();
 			int color = -1;
 
@@ -248,14 +259,22 @@ public class TorrentListRowFiller
 					String name = null;
 					int type = 0;
 					if (o instanceof Number) {
-						Map<?, ?> mapTag = sessionInfo.getTag(((Number) o).longValue());
+						Map<?, ?> mapTag = session.tag
+							.getTag(((Number) o).longValue());
 						if (mapTag != null) {
-							String htmlColor = MapUtils.getMapString(mapTag, "color", null);
+							String htmlColor = MapUtils.getMapString(mapTag,
+									TransmissionVars.FIELD_TAG_COLOR, null);
 							if (htmlColor != null && htmlColor.startsWith("#")) {
 								color = Integer.decode("0x" + htmlColor.substring(1));
 							}
-							name = MapUtils.getMapString(mapTag, "name", null);
-							type = MapUtils.getMapInt(mapTag, "type", 0);
+							name = MapUtils.getMapString(mapTag,
+									TransmissionVars.FIELD_TAG_NAME, null);
+							// English hack.  If we had the tag-id, we could use 3 or 4
+							if (name != null && name.startsWith("Queued for")) {
+								name = "Queued";
+							}
+							type = MapUtils.getMapInt(mapTag, TransmissionVars.FIELD_TAG_TYPE,
+									0);
 						}
 					}
 					if (type != 2) {
@@ -275,7 +294,7 @@ public class TorrentListRowFiller
 
 			SpannableStringBuilder ss = new SpannableStringBuilder(text);
 			String string = text.toString();
-			new SpanBubbles().setSpanBubbles(ss, string, "|",
+			SpanBubbles.setSpanBubbles(ss, string, "|",
 					holder.tvStatus.getPaint(), color < 0 ? colorBGTagState : color,
 					colorFGTagState, colorBGTagState, null);
 			flipper.changeText(holder.tvStatus, ss, holder.animateFlip, validator);
@@ -283,20 +302,23 @@ public class TorrentListRowFiller
 
 		if (holder.tvTags != null) {
 			ArrayList<Map<?, ?>> listTags = new ArrayList<>();
-			List<?> mapTagUIDs = MapUtils.getMapList(item, "tag-uids", null);
+			List<?> mapTagUIDs = MapUtils.getMapList(item,
+					TransmissionVars.FIELD_TORRENT_TAG_UIDS, null);
 			if (mapTagUIDs != null) {
 				for (Object o : mapTagUIDs) {
 					int type;
 					if (o instanceof Number) {
-						Map<?, ?> mapTag = sessionInfo.getTag(((Number) o).longValue());
+						Map<?, ?> mapTag = session.tag
+							.getTag(((Number) o).longValue());
 						if (mapTag != null) {
-							type = MapUtils.getMapInt(mapTag, "type", 0);
+							type = MapUtils.getMapInt(mapTag, TransmissionVars.FIELD_TAG_TYPE,
+									0);
 							if (type == 2) {
 								continue;
 							}
 							if (type == 1) {
 								boolean canBePublic = MapUtils.getMapBoolean(mapTag,
-										"canBePublic", false);
+										TransmissionVars.FIELD_TAG_CANBEPUBLIC, false);
 								if (!canBePublic) {
 									continue;
 								}
@@ -309,7 +331,7 @@ public class TorrentListRowFiller
 			if (listTags.size() > 0) {
 				try {
 					// TODO: mebbe cache spanTags in holder?
-					SpanTags spanTags = new SpanTags(context, sessionInfo, holder.tvTags,
+					SpanTags spanTags = new SpanTags(context, session, holder.tvTags,
 							null);
 
 					spanTags.setFlipper(flipper, validator);

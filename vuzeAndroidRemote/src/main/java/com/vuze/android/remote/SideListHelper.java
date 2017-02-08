@@ -27,6 +27,7 @@ import com.vuze.android.util.AnimatorEndListener;
 import com.vuze.android.util.OnSwipeTouchListener;
 import com.vuze.android.widget.FlingLinearLayout;
 import com.vuze.android.widget.PreCachingLayoutManager;
+import com.vuze.util.Thunk;
 
 import android.animation.Animator;
 import android.animation.LayoutTransition;
@@ -34,6 +35,7 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBar;
@@ -52,35 +54,45 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 /**
+ * Builds and manages a side list consisting of expandable groups. Provides
+ * and handles common sort and text filters sections.
+ *
  * Created by TuxPaper on 6/14/16.
  */
-public abstract class SideListHelper
+public class SideListHelper
 {
-	static final String TAG = "SideListHelper";
+	private static final String TAG = "SideListHelper";
 
-	/* @Thunk */ final FragmentActivity activity;
+	@Thunk
+	final FragmentActivity activity;
 
 	private final View parentView;
 
 	private OnSwipeTouchListener expandTouchListener;
 
-	/* @Thunk */ LinearLayout sideListArea;
+	@Thunk
+	LinearLayout sideListArea;
 
-	/* @Thunk */ Boolean sidelistIsExpanded = null;
+	@Thunk
+	Boolean sidelistIsExpanded = null;
 
-	/* @Thunk */ Boolean sidelistInFocus = null;
+	@Thunk
+	Boolean sidelistInFocus = null;
 
-	/* @Thunk */ ViewGroup sidebarViewActive = null;
+	@Thunk
+	ViewGroup sidebarViewActive = null;
 
-	/* @Thunk */ boolean hideUnselectedSideHeaders = false;
+	@Thunk
+	boolean hideUnselectedSideHeaders = false;
 
-	/* @Thunk */ List<ViewGroup> listHeaderViewGroups = new ArrayList<>();
+	@Thunk
+	List<ViewGroup> listHeaderViewGroups = new ArrayList<>();
 
-	private List<ViewGroup> listBodyViewGroups = new ArrayList<>();
+	private final List<ViewGroup> listBodyViewGroups = new ArrayList<>();
 
 	private final int sideListAreaID;
 
-	private int SIDELIST_COLLAPSE_UNTIL_WIDTH_PX;
+	private final int SIDELIST_COLLAPSE_UNTIL_WIDTH_PX;
 
 	private final int SIDELIST_KEEP_EXPANDED_AT_DP;
 
@@ -88,9 +100,10 @@ public abstract class SideListHelper
 
 	private final int SIDELIST_MAX_WIDTH;
 
-	/* @Thunk */ final int SIDELIST_HIDE_UNSELECTED_HEADERS_MAX_DP;
+	@Thunk
+	final int SIDELIST_HIDE_UNSELECTED_HEADERS_MAX_DP;
 
-	private final int SIDELIST_DURATION_MS = 300;
+	private final static int SIDELIST_DURATION_MS = 300;
 
 	private DrawerArrowDrawable mDrawerArrow;
 
@@ -103,18 +116,23 @@ public abstract class SideListHelper
 
 	private SideSortAdapter sideSortAdapter;
 
-	/* @Thunk */ SideSortAPI sidesortAPI;
+	@Thunk
+	SideSortAPI sidesortAPI;
 
 	// << SideSort
 
 	// >> SideTextFilter
-	/* @Thunk */ RecyclerView listSideTextFilter;
+	@Thunk
+	RecyclerView listSideTextFilter;
 
-	/* @Thunk */ TextView tvSideFilterText;
+	@Thunk
+	TextView tvSideFilterText;
 
-	/* @Thunk */ SideFilterAdapter sideTextFilterAdapter;
+	@Thunk
+	SideFilterAdapter sideTextFilterAdapter;
 
-	/* @Thunk */ LetterFilter letterFilter;
+	@Thunk
+	LetterFilter letterFilter;
 	// << SideTextFilter
 
 	public SideListHelper(FragmentActivity activity, View parentView,
@@ -186,30 +204,7 @@ public abstract class SideListHelper
 			}
 
 			if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) {
-				if (!isInDrawer()) {
-					parentView.addOnLayoutChangeListener(new View.OnLayoutChangeListener()
-
-					{
-						int lastWidth = -1;
-
-						@Override
-						public void onLayoutChange(View v, int left, int top, int right,
-								int bottom, int oldLeft, int oldTop, int oldRight,
-								int oldBottom) {
-							int width = right - left;
-							if (width != lastWidth) {
-								lastWidth = width;
-								expandSideListWidth(sidelistInFocus);
-							}
-						}
-					});
-				}
-			}
-
-			if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.HONEYCOMB) {
-				LayoutTransition layoutTransition = new LayoutTransition();
-				layoutTransition.setDuration(400);
-				sideListArea.setLayoutTransition(layoutTransition);
+				initHoneyComb();
 			}
 
 			animationListener = new Animation.AnimationListener() {
@@ -228,6 +223,7 @@ public abstract class SideListHelper
 							}
 						}
 					}
+
 					expandedStateChanged(sidelistIsExpanded);
 				}
 
@@ -297,6 +293,31 @@ public abstract class SideListHelper
 		}
 	}
 
+	@TargetApi(Build.VERSION_CODES.HONEYCOMB)
+	private void initHoneyComb() {
+		if (!isInDrawer()) {
+			parentView.addOnLayoutChangeListener(new View.OnLayoutChangeListener()
+
+			{
+				int lastWidth = -1;
+
+				@Override
+				public void onLayoutChange(View v, int left, int top, int right,
+						int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
+					int width = right - left;
+					if (width != lastWidth) {
+						lastWidth = width;
+						expandSideListWidth(sidelistInFocus);
+					}
+				}
+			});
+		}
+
+		LayoutTransition layoutTransition = new LayoutTransition();
+		layoutTransition.setDuration(400);
+		sideListArea.setLayoutTransition(layoutTransition);
+	}
+
 	private boolean isInDrawer() {
 		if (activity instanceof DrawerActivity) {
 			DrawerLayout drawerLayout = ((DrawerActivity) activity).getDrawerLayout();
@@ -311,7 +332,8 @@ public abstract class SideListHelper
 		return false;
 	}
 
-			/* @Thunk */ boolean expandSideListWidth(Boolean expand) {
+	@Thunk
+	boolean expandSideListWidth(Boolean expand) {
 		if (sideListArea == null || SIDELIST_KEEP_EXPANDED_AT_DP == 0) {
 			return false;
 		}
@@ -376,11 +398,17 @@ public abstract class SideListHelper
 		return true;
 	}
 
-	public abstract void expandedStateChanged(boolean expanded);
+	public void expandedStateChanged(boolean expanded) {
+		if (sideSortAdapter != null) {
+			sideSortAdapter.setViewType(expanded ? 0 : 1);
+		}
+	}
 
-	public abstract void expandedStateChanging(boolean expanded);
+	public void expandedStateChanging(boolean expanded) {
 
-	public static void sizeTo(final View v, int finalWidth, int durationMS,
+	}
+
+	private static void sizeTo(final View v, int finalWidth, int durationMS,
 			Animation.AnimationListener listener) {
 		final int initalWidth = v.getMeasuredWidth();
 
@@ -417,15 +445,12 @@ public abstract class SideListHelper
 		v.startAnimation(a);
 	}
 
-	public LinearLayout getSideListArea() {
-		return sideListArea;
-	}
-
 	public boolean isValid() {
 		return sideListArea != null;
 	}
 
-			/* @Thunk */ void hideAllBodies() {
+	@Thunk
+	void hideAllBodies() {
 		for (ViewGroup contentArea : listBodyViewGroups) {
 			contentArea.setVisibility(View.GONE);
 		}
@@ -531,7 +556,7 @@ public abstract class SideListHelper
 
 							for (final View header : viewsToMove) {
 								Animator.AnimatorListener l = new AnimatorEndListener() {
-									ViewGroup old = sidebarViewActive;
+									final ViewGroup old = sidebarViewActive;
 
 									@TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
 									@Override
@@ -591,7 +616,8 @@ public abstract class SideListHelper
 		vgHeader.setOnClickListener(onClickListener);
 	}
 
-	protected void sectionVisibiltyChanged(ViewGroup vgNewlyVisible) {
+	@Thunk
+	void sectionVisibiltyChanged(@Nullable ViewGroup vgNewlyVisible) {
 		boolean isSideTextFilterVisible = vgNewlyVisible == listSideTextFilter;
 		if (tvSideFilterText != null && listSideTextFilter != null) {
 			tvSideFilterText.setVisibility(
@@ -607,15 +633,6 @@ public abstract class SideListHelper
 		}
 	}
 
-	private boolean canSideListExpand() {
-		if (parentView == null) {
-			return false;
-		}
-		int width = parentView.getWidth();
-		boolean noExpanding = width < SIDELIST_COLLAPSE_UNTIL_WIDTH_PX;
-		return !noExpanding;
-	}
-
 	public boolean onOptionsItemSelected(MenuItem item) {
 		if (item != null && item.getItemId() == android.R.id.home) {
 			boolean expand = true;
@@ -625,8 +642,7 @@ public abstract class SideListHelper
 			}
 
 			if (expand) {
-				expandSideListWidth(
-						sidelistIsExpanded == null ? true : !sidelistIsExpanded);
+				expandSideListWidth(sidelistIsExpanded == null || !sidelistIsExpanded);
 				return true;
 			}
 		}
@@ -747,7 +763,7 @@ public abstract class SideListHelper
 	}
 
 	public void setupSideSort(View view, int id_sidesort_list,
-			int id_sort_current, int id_strings, SideSortAPI _sidesortAPI) {
+			int id_sort_current, SideSortAPI _sidesortAPI) {
 		sidesortAPI = _sidesortAPI;
 		RecyclerView oldRV = listSideSort;
 		listSideSort = (RecyclerView) view.findViewById(id_sidesort_list);
@@ -807,13 +823,11 @@ public abstract class SideListHelper
 
 					}
 				});
-		//String[] sortNames = context.getResources().getStringArray(id_strings);
-		// last on is "reverse".. so ignore it
 		List<SideSortAdapter.SideSortInfo> list = new ArrayList<>();
 		SortByFields[] sortByFields = sidesortAPI.getSortByFields(context);
-		for (int i = 0; i < sortByFields.length - 1; i++) {
+		for (int i = 0; i < sortByFields.length; i++) {
 			list.add(new SideSortAdapter.SideSortInfo(i, sortByFields[i].name,
-					sortByFields[i].flipArrow));
+					sortByFields[i].resAscending, sortByFields[i].resDescending));
 		}
 		sideSortAdapter.setItems(list);
 		listSideSort.setAdapter(sideSortAdapter);
@@ -827,9 +841,6 @@ public abstract class SideListHelper
 			SortByFields[] sortByFields = sidesortAPI.getSortByFields(context);
 			String s = "";
 			if (which >= 0 && which < sortByFields.length) {
-				if (sortByFields[which].flipArrow) {
-					sortOrderAsc = !sortOrderAsc;
-				}
 				s = sortByFields[which].name + " " + (sortOrderAsc ? "▲" : "▼");
 			}
 
@@ -854,7 +865,6 @@ public abstract class SideListHelper
 	 * Call this from lettersUpdated(HashMap<String, Integer>) of the adapter
 	 * you want to show the letters for
 	 *
-	 * @param mapLetters
 	 */
 	public void lettersUpdated(HashMap<String, Integer> mapLetters) {
 		if (sideTextFilterAdapter == null) {
